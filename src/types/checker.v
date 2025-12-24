@@ -135,7 +135,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) (typed_ast.Statement,
 				params: param_types
 				ret:    ret_type
 			}
-			c.env.register_function(stmt.identifier.name, func_type)
 			c.env.define(stmt.identifier.name, func_type)
 
 			c.env.push_scope()
@@ -352,17 +351,11 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) (typed_ast.Expression, Ty
 				typed_args << typed_arg
 			}
 
-			ret_type := if func_type := c.env.lookup_function(expr.identifier.name) {
-				func_type.ret
-			} else {
-				t_none()
-			}
-
 			return typed_ast.FunctionCallExpression{
 				identifier: convert_identifier(expr.identifier)
 				arguments:  typed_args
 				span:       expr.span
-			}, ret_type
+			}, t_none()
 		}
 		ast.BlockExpression {
 			c.env.push_scope()

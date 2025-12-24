@@ -1,17 +1,15 @@
 module types
 
-import type_def { Type, TypeFunction, t_bool, t_float, t_int, t_none, t_string }
+import type_def { Type, t_bool, t_float, t_int, t_none, t_string }
 
 pub struct TypeEnv {
 mut:
-	scopes    []map[string]Type
-	functions map[string]TypeFunction
+	scopes []map[string]Type
 }
 
 pub fn new_env() TypeEnv {
 	return TypeEnv{
-		scopes:    [map[string]Type{}]
-		functions: map[string]TypeFunction{}
+		scopes: [map[string]Type{}]
 	}
 }
 
@@ -38,14 +36,6 @@ pub fn (e TypeEnv) lookup(name string) ?Type {
 		}
 	}
 	return none
-}
-
-pub fn (mut e TypeEnv) register_function(name string, f TypeFunction) {
-	e.functions[name] = f
-}
-
-pub fn (e TypeEnv) lookup_function(name string) ?TypeFunction {
-	return e.functions[name] or { return none }
 }
 
 pub fn (e TypeEnv) lookup_type(name string) ?Type {
