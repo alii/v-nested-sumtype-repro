@@ -154,13 +154,10 @@ pub:
 	span        Span @[required]
 }
 
-pub type Statement = ConstBinding
-	| EnumDeclaration
+pub type Statement = EnumDeclaration
 	| ExportDeclaration
 	| FunctionDeclaration
-	| ImportDeclaration
 	| StructDeclaration
-	| TypePatternBinding
 	| VariableBinding
 
 // ============================================================================
@@ -319,7 +316,6 @@ pub:
 
 pub type Expression = ArrayExpression
 	| ArrayIndexExpression
-	| AssertExpression
 	| BinaryExpression
 	| BlockExpression
 	| BooleanLiteral
@@ -329,21 +325,15 @@ pub type Expression = ArrayExpression
 	| FunctionExpression
 	| Identifier
 	| IfExpression
-	| InterpolatedString
 	| MatchExpression
-	| NoneExpression
 	| NumberLiteral
 	| OrExpression
-	| OrPattern
 	| PropertyAccessExpression
 	| PropagateNoneExpression
 	| RangeExpression
-	| SpreadExpression
 	| StringLiteral
 	| StructInitExpression
-	| TypeIdentifier
 	| UnaryExpression
-	| WildcardPattern
 
 pub type Node = Statement | Expression
 

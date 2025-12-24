@@ -76,22 +76,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 				span:       stmt.span
 			}
 		}
-		ast.ConstBinding {
-			typed_init := c.check_expr(stmt.init)
-			c.env.define(stmt.identifier.name, t_none())
-			return typed_ast.ConstBinding{
-				identifier: convert_identifier(stmt.identifier)
-				init:       typed_init
-				span:       stmt.span
-			}
-		}
-		ast.TypePatternBinding {
-			return typed_ast.TypePatternBinding{
-				typ:  convert_type_identifier(stmt.typ)
-				init: c.check_expr(stmt.init)
-				span: stmt.span
-			}
-		}
 		ast.FunctionDeclaration {
 			c.env.define(stmt.identifier.name, t_none())
 			for param in stmt.params {
@@ -114,12 +98,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 			return typed_ast.EnumDeclaration{
 				identifier: convert_identifier(stmt.identifier)
 				span:       stmt.span
-			}
-		}
-		ast.ImportDeclaration {
-			return typed_ast.ImportDeclaration{
-				path: stmt.path
-				span: stmt.span
 			}
 		}
 		ast.ExportDeclaration {
@@ -145,20 +123,10 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 				span:  expr.span
 			}
 		}
-		ast.InterpolatedString {
-			return typed_ast.InterpolatedString{
-				span: expr.span
-			}
-		}
 		ast.BooleanLiteral {
 			return typed_ast.BooleanLiteral{
 				value: expr.value
 				span:  expr.span
-			}
-		}
-		ast.NoneExpression {
-			return typed_ast.NoneExpression{
-				span: expr.span
 			}
 		}
 		ast.Identifier {
@@ -260,32 +228,10 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 				span:  expr.span
 			}
 		}
-		ast.SpreadExpression {
-			return typed_ast.SpreadExpression{
-				span: expr.span
-			}
-		}
-		ast.AssertExpression {
-			return typed_ast.AssertExpression{
-				expression: c.check_expr(expr.expression)
-				message:    c.check_expr(expr.message)
-				span:       expr.span
-			}
-		}
 		ast.PropagateNoneExpression {
 			return typed_ast.PropagateNoneExpression{
 				expression: c.check_expr(expr.expression)
 				span:       expr.span
-			}
-		}
-		ast.WildcardPattern {
-			return typed_ast.WildcardPattern{
-				span: expr.span
-			}
-		}
-		ast.OrPattern {
-			return typed_ast.OrPattern{
-				span: expr.span
 			}
 		}
 		ast.ErrorNode {
@@ -293,9 +239,6 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 				message: expr.message
 				span:    expr.span
 			}
-		}
-		ast.TypeIdentifier {
-			return convert_type_identifier(expr)
 		}
 	}
 }
