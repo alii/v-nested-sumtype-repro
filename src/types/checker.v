@@ -94,12 +94,10 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 		}
 		ast.FunctionDeclaration {
 			c.env.define(stmt.identifier.name, t_none())
-			c.env.push_scope()
 			for param in stmt.params {
 				c.env.define(param.identifier.name, t_none())
 			}
 			typed_body := c.check_expr(stmt.body)
-			c.env.pop_scope()
 			return typed_ast.FunctionDeclaration{
 				identifier: convert_identifier(stmt.identifier)
 				body:       typed_body
@@ -201,9 +199,7 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 			}
 		}
 		ast.BlockExpression {
-			c.env.push_scope()
 			block, _ := c.check_block(expr)
-			c.env.pop_scope()
 			return block
 		}
 		ast.IfExpression {
