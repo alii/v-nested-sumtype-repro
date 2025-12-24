@@ -319,7 +319,6 @@ pub type Expression = ArrayExpression
 	| BinaryExpression
 	| BlockExpression
 	| BooleanLiteral
-	| ErrorExpression
 	| ErrorNode
 	| FunctionCallExpression
 	| FunctionExpression
@@ -327,10 +326,7 @@ pub type Expression = ArrayExpression
 	| IfExpression
 	| MatchExpression
 	| NumberLiteral
-	| OrExpression
 	| PropertyAccessExpression
-	| PropagateNoneExpression
-	| RangeExpression
 	| StringLiteral
 	| StructInitExpression
 	| UnaryExpression

@@ -208,32 +208,6 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 				span:    expr.span
 			}
 		}
-		ast.OrExpression {
-			return typed_ast.OrExpression{
-				expression: c.check_expr(expr.expression)
-				body:       c.check_expr(expr.body)
-				span:       expr.span
-			}
-		}
-		ast.ErrorExpression {
-			return typed_ast.ErrorExpression{
-				expression: c.check_expr(expr.expression)
-				span:       expr.span
-			}
-		}
-		ast.RangeExpression {
-			return typed_ast.RangeExpression{
-				start: c.check_expr(expr.start)
-				end:   c.check_expr(expr.end)
-				span:  expr.span
-			}
-		}
-		ast.PropagateNoneExpression {
-			return typed_ast.PropagateNoneExpression{
-				expression: c.check_expr(expr.expression)
-				span:       expr.span
-			}
-		}
 		ast.ErrorNode {
 			return typed_ast.ErrorNode{
 				message: expr.message

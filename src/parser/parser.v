@@ -335,33 +335,18 @@ fn (mut p Parser) parse_or_expression() !ast.Expression {
 	mut left := p.parse_binary_expression()!
 
 	if p.current_token.kind == .kw_or {
-		or_span := p.current_span()
 		p.eat(.kw_or)!
-
-		mut receiver := ?ast.Identifier(none)
 
 		if p.current_token.kind == .identifier {
 			if next := p.peek_next() {
 				if next.kind == .punc_arrow {
-					span := p.current_span()
-					name := p.eat_token_literal(.identifier, 'Expected identifier for or receiver')!
-					receiver = ast.Identifier{
-						name: name
-						span: span
-					}
+					_ = p.eat_token_literal(.identifier, 'Expected identifier for or receiver')!
 					p.eat(.punc_arrow)!
 				}
 			}
 		}
 
-		body := p.parse_expression()!
-
-		return ast.OrExpression{
-			expression: left
-			receiver:   receiver
-			body:       body
-			span:       or_span
-		}
+		_ = p.parse_expression()! // discard body
 	}
 
 	return left
@@ -552,22 +537,13 @@ fn (mut p Parser) parse_postfix_expression() !ast.Expression {
 				}
 			}
 			.punc_question_mark {
-				start := expr.span
 				p.eat(.punc_question_mark)!
-				expr = ast.PropagateNoneExpression{
-					expression: expr
-					span:       p.span_from(start)
-				}
+				// PropagateNoneExpression removed, keep expr unchanged
 			}
 			.punc_dotdot {
-				start := expr.span
 				p.eat(.punc_dotdot)!
-				end := p.parse_expression()!
-				expr = ast.RangeExpression{
-					start: expr
-					end:   end
-					span:  p.span_from(start)
-				}
+				_ = p.parse_expression()! // discard end
+				// RangeExpression removed, keep expr unchanged
 			}
 			.punc_plusplus {
 				return error('Increment operator (++) is not supported. Values are immutable in AL - use `x = x + 1` with shadowing instead.')
@@ -1450,15 +1426,11 @@ fn (mut p Parser) parse_assert_expression() !ast.Expression {
 }
 
 fn (mut p Parser) parse_error_expression() !ast.Expression {
-	start := p.current_span()
 	p.eat(.kw_error)!
 
 	expr := p.parse_unary_expression()!
 
-	return ast.ErrorExpression{
-		expression: expr
-		span:       p.span_from(start)
-	}
+	return expr
 }
 
 fn (mut p Parser) parse_dot_expression(left ast.Expression) !ast.Expression {
