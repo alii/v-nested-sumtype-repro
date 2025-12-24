@@ -3,6 +3,7 @@ module main
 import src.ast
 import src.compiler
 import src.checker
+import src.parser
 import src.span { Span }
 import src.type_def
 
@@ -233,4 +234,46 @@ fn main() {
 		return
 	}
 	println('Check4: ${check_result4}')
+
+	// Test with parser
+	parsed1 := parser.parse('block let x = 42 fn f block 1 2 end end') or {
+		println('Parse error: ${err}')
+		return
+	}
+	result_p1 := compiler.compile(parsed1)
+	println('Parsed1: ${result_p1}')
+
+	parsed2 := parser.parse('block export fn main block let y = 10 y end end') or {
+		println('Parse error: ${err}')
+		return
+	}
+	result_p2 := compiler.compile(parsed2)
+	println('Parsed2: ${result_p2}')
+
+	parsed3 := parser.parse('if true then block 1 2 3 end else 0') or {
+		println('Parse error: ${err}')
+		return
+	}
+	result_p3 := compiler.compile(parsed3)
+	println('Parsed3: ${result_p3}')
+
+	parsed4 := parser.parse('match x case 1 => 10 case 2 => 20 end') or {
+		println('Parse error: ${err}')
+		return
+	}
+	result_p4 := compiler.compile(parsed4)
+	println('Parsed4: ${result_p4}')
+
+	// Check parsed expressions too
+	check_p1 := checker.check(parsed1) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('CheckP1: ${check_p1}')
+
+	check_p2 := checker.check(parsed2) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('CheckP2: ${check_p2}')
 }
