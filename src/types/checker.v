@@ -164,7 +164,6 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 			}
 		}
 		ast.Identifier {
-			_ := c.env.lookup(expr.name)
 			return typed_ast.Identifier{
 				name: expr.name
 				span: expr.span
