@@ -11,6 +11,21 @@ fn main() {
 	str := ast.Expression(ast.StringLiteral{ value: 'hello', span: Span{} })
 	ident := ast.Expression(ast.Identifier{ name: 'x', span: Span{} })
 
+	// Binary expression with operator
+	bin_expr := ast.Expression(ast.BinaryExpression{
+		left:  num
+		right: ast.Expression(ast.NumberLiteral{ value: '10', span: Span{} })
+		op:    ast.Operator{ kind: .punc_plus }
+		span:  Span{}
+	})
+
+	// Unary expression
+	unary_expr := ast.Expression(ast.UnaryExpression{
+		expression: num
+		op:         ast.Operator{ kind: .punc_minus }
+		span:       Span{}
+	})
+
 	var_bind := ast.Statement(ast.VariableBinding{
 		identifier: ast.Identifier{ name: 'x', span: Span{} }
 		init:       num
@@ -158,4 +173,38 @@ fn main() {
 
 	result8 := compiler.compile(deep)
 	println('Result8: ${result8}')
+
+	// Test binary expression
+	result9 := compiler.compile(bin_expr)
+	println('Result9: ${result9}')
+
+	// Test unary expression
+	result10 := compiler.compile(unary_expr)
+	println('Result10: ${result10}')
+
+	// Test block with binary and unary
+	mixed_block := ast.Expression(ast.BlockExpression{
+		body: [
+			ast.BlockItem{ is_statement: true, statement: var_bind },
+			ast.BlockItem{ is_statement: false, expression: bin_expr },
+			ast.BlockItem{ is_statement: false, expression: unary_expr },
+			ast.BlockItem{ is_statement: true, statement: export_decl },
+			ast.BlockItem{ is_statement: false, expression: if_expr },
+		]
+		span: Span{}
+	})
+
+	result11 := compiler.compile(mixed_block)
+	println('Result11: ${result11}')
+
+	// Test logical operators
+	and_expr := ast.Expression(ast.BinaryExpression{
+		left:  ast.Expression(ast.BooleanLiteral{ value: true, span: Span{} })
+		right: ast.Expression(ast.BooleanLiteral{ value: false, span: Span{} })
+		op:    ast.Operator{ kind: .logical_and }
+		span:  Span{}
+	})
+
+	result12 := compiler.compile(and_expr)
+	println('Result12: ${result12}')
 }

@@ -104,13 +104,72 @@ fn (mut c Compiler) compile_expr(expr ast.Expression) {
 			c.count += 1
 		}
 		ast.BinaryExpression {
+			if expr.op.kind == .logical_and {
+				c.compile_expr(expr.left)
+				c.compile_expr(expr.right)
+				c.count += 1
+				return
+			}
+			if expr.op.kind == .logical_or {
+				c.compile_expr(expr.left)
+				c.compile_expr(expr.right)
+				c.count += 1
+				return
+			}
 			c.compile_expr(expr.left)
 			c.compile_expr(expr.right)
-			c.count += 1
+			match expr.op.kind {
+				.punc_plus {
+					c.count += 1
+				}
+				.punc_minus {
+					c.count += 1
+				}
+				.punc_mul {
+					c.count += 1
+				}
+				.punc_div {
+					c.count += 1
+				}
+				.punc_mod {
+					c.count += 1
+				}
+				.punc_equals_comparator {
+					c.count += 1
+				}
+				.punc_not_equal {
+					c.count += 1
+				}
+				.punc_lt {
+					c.count += 1
+				}
+				.punc_gt {
+					c.count += 1
+				}
+				.punc_lte {
+					c.count += 1
+				}
+				.punc_gte {
+					c.count += 1
+				}
+				else {
+					c.count += 1
+				}
+			}
 		}
 		ast.UnaryExpression {
 			c.compile_expr(expr.expression)
-			c.count += 1
+			match expr.op.kind {
+				.punc_exclamation_mark {
+					c.count += 1
+				}
+				.punc_minus {
+					c.count += 1
+				}
+				else {
+					c.count += 1
+				}
+			}
 		}
 		ast.IfExpression {
 			c.compile_expr(expr.condition)

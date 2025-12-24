@@ -2,6 +2,7 @@ module ast
 
 import src.span { Span }
 import src.type_def { Type }
+import src.token
 
 // ============================================================================
 // Literals and Basic Nodes
@@ -63,7 +64,7 @@ pub:
 
 pub struct Operator {
 pub:
-	kind int
+	kind token.Kind
 }
 
 // ============================================================================
