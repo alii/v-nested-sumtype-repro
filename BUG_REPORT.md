@@ -69,6 +69,11 @@ The reproduction has been minimized to ~2700 lines across the source files.
    - Two similar sum type hierarchies in different modules (ast and typed_ast)
    - Writes to a `map[string]Type` during match processing
 
+5. **Sum type size matters**: The bug is sensitive to the number of variants:
+   - With 12 Expression + 3 Statement variants: ✅ **Works** (no crash)
+   - With 27 Expression + 8 Statement variants: ❌ **Segfault**
+   - The threshold appears to be somewhere between these values
+
 ## Expected Behavior
 
 The program should run without crashing, the same as it does:
