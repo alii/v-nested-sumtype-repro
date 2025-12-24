@@ -3,9 +3,19 @@ module ast
 import token
 import span { Span }
 
+// ============================================================================
+// Literals and Basic Nodes
+// ============================================================================
+
 pub struct StringLiteral {
 pub:
 	value string
+	span  Span @[required]
+}
+
+pub struct InterpolatedString {
+pub:
+	parts []Expression
 	span  Span @[required]
 }
 
@@ -21,6 +31,17 @@ pub:
 	span  Span @[required]
 }
 
+pub struct NoneExpression {
+pub:
+	span Span @[required]
+}
+
+pub struct ErrorNode {
+pub:
+	message string
+	span    Span @[required]
+}
+
 pub struct Identifier {
 pub:
 	name string
@@ -29,8 +50,15 @@ pub:
 
 pub struct TypeIdentifier {
 pub:
-	identifier Identifier
-	span       Span @[required]
+	is_array     bool
+	is_option    bool
+	is_function  bool
+	identifier   Identifier
+	element_type ?&TypeIdentifier
+	param_types  []TypeIdentifier
+	return_type  ?&TypeIdentifier
+	error_type   ?&TypeIdentifier
+	span         Span @[required]
 }
 
 pub struct Operator {
@@ -38,23 +66,85 @@ pub:
 	kind token.Kind
 }
 
+// ============================================================================
+// Statements (do not produce values)
+// ============================================================================
+
 pub struct VariableBinding {
 pub:
 	identifier Identifier
+	typ        ?TypeIdentifier
 	init       Expression
 	span       Span @[required]
+}
+
+pub struct ConstBinding {
+pub:
+	identifier Identifier
+	typ        ?TypeIdentifier
+	init       Expression
+	span       Span @[required]
+}
+
+pub struct TypePatternBinding {
+pub:
+	typ  TypeIdentifier
+	init Expression
+	span Span @[required]
 }
 
 pub struct FunctionParameter {
 pub:
 	identifier Identifier
+	typ        ?TypeIdentifier
 }
 
 pub struct FunctionDeclaration {
 pub:
+	identifier  Identifier
+	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
+	params      []FunctionParameter
+	body        Expression
+	span        Span @[required]
+}
+
+pub struct StructField {
+pub:
 	identifier Identifier
-	params     []FunctionParameter
-	body       Expression
+	typ        TypeIdentifier
+	init       ?Expression
+}
+
+pub struct StructDeclaration {
+pub:
+	identifier Identifier
+	fields     []StructField
+	span       Span @[required]
+}
+
+pub struct EnumVariant {
+pub:
+	identifier Identifier
+	payload    []TypeIdentifier
+}
+
+pub struct EnumDeclaration {
+pub:
+	identifier Identifier
+	variants   []EnumVariant
+	span       Span @[required]
+}
+
+pub struct ImportSpecifier {
+pub:
+	identifier Identifier
+}
+
+pub struct ImportDeclaration {
+pub:
+	path       string
+	specifiers []ImportSpecifier
 	span       Span @[required]
 }
 
@@ -64,15 +154,26 @@ pub:
 	span        Span @[required]
 }
 
-pub type Statement = ExportDeclaration
+pub type Statement = ConstBinding
+	| EnumDeclaration
+	| ExportDeclaration
 	| FunctionDeclaration
+	| ImportDeclaration
+	| StructDeclaration
+	| TypePatternBinding
 	| VariableBinding
+
+// ============================================================================
+// Expressions (produce values)
+// ============================================================================
 
 pub struct FunctionExpression {
 pub:
-	params []FunctionParameter
-	body   Expression
-	span   Span @[required]
+	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
+	params      []FunctionParameter
+	body        Expression
+	span        Span @[required]
 }
 
 pub struct IfExpression {
@@ -83,12 +184,52 @@ pub:
 	else_body ?Expression
 }
 
+pub struct MatchArm {
+pub:
+	pattern Expression
+	body    Expression
+}
+
+pub struct MatchExpression {
+pub:
+	subject Expression
+	arms    []MatchArm
+	span    Span @[required]
+}
+
+pub struct OrExpression {
+pub:
+	expression Expression
+	receiver   ?Identifier
+	body       Expression
+	span       Span @[required]
+}
+
+pub struct ErrorExpression {
+pub:
+	expression Expression
+	span       Span @[required]
+}
+
+pub struct PropagateNoneExpression {
+pub:
+	expression Expression
+	span       Span @[required]
+}
+
 pub struct BinaryExpression {
 pub:
 	left  Expression
 	right Expression
 	op    Operator
 	span  Span @[required]
+}
+
+pub struct UnaryExpression {
+pub:
+	expression Expression
+	op         Operator
+	span       Span @[required]
 }
 
 pub struct ArrayExpression {
@@ -104,17 +245,38 @@ pub:
 	span       Span @[required]
 }
 
+pub struct RangeExpression {
+pub:
+	start Expression
+	end   Expression
+	span  Span @[required]
+}
+
+pub struct StructInitExpression {
+pub:
+	identifier Identifier
+	fields     []StructInitField
+	span       Span @[required]
+}
+
+pub struct StructInitField {
+pub:
+	identifier Identifier
+	init       Expression
+}
+
+pub struct PropertyAccessExpression {
+pub:
+	left  Expression
+	right Expression
+	span  Span @[required]
+}
+
 pub struct FunctionCallExpression {
 pub:
 	identifier Identifier
 	arguments  []Expression
 	span       Span @[required]
-}
-
-pub struct ErrorNode {
-pub:
-	message string
-	span    Span @[required]
 }
 
 pub struct BlockExpression {
@@ -123,27 +285,67 @@ pub:
 	span Span @[required]
 }
 
+pub struct AssertExpression {
+pub:
+	expression Expression
+	message    Expression
+	span       Span @[required]
+}
+
+// ============================================================================
+// Patterns (used in match arms)
+// ============================================================================
+
+pub struct WildcardPattern {
+pub:
+	span Span @[required]
+}
+
+pub struct OrPattern {
+pub:
+	patterns []Expression
+	span     Span @[required]
+}
+
+pub struct SpreadExpression {
+pub:
+	expression ?Expression
+	span       Span @[required]
+}
+
+// ============================================================================
+// Sum Types
+// ============================================================================
+
 pub type Expression = ArrayExpression
 	| ArrayIndexExpression
+	| AssertExpression
 	| BinaryExpression
 	| BlockExpression
 	| BooleanLiteral
+	| ErrorExpression
 	| ErrorNode
 	| FunctionCallExpression
 	| FunctionExpression
 	| Identifier
 	| IfExpression
+	| InterpolatedString
+	| MatchExpression
+	| NoneExpression
 	| NumberLiteral
+	| OrExpression
+	| OrPattern
+	| PropertyAccessExpression
+	| PropagateNoneExpression
+	| RangeExpression
+	| SpreadExpression
 	| StringLiteral
+	| StructInitExpression
+	| TypeIdentifier
+	| UnaryExpression
+	| WildcardPattern
 
 pub type Node = Statement | Expression
-
-pub struct BlockItem {
-pub:
-	is_statement bool
-	statement    Statement
-	expression   Expression
-}
 
 pub fn node_span(node Node) Span {
 	return match node {
