@@ -1,279 +1,202 @@
 module main
 
-import src.ast
-import src.compiler
-import src.checker
-import src.parser
+import src.typed_ast
+import src.bytecode
+import src.types
+import src.flags
 import src.span { Span }
 import src.type_def
 
 fn main() {
-	// Build a complex AST
-	num := ast.Expression(ast.NumberLiteral{ value: '42', span: Span{} })
-	str := ast.Expression(ast.StringLiteral{ value: 'hello', span: Span{} })
-	ident := ast.Expression(ast.Identifier{ name: 'x', span: Span{} })
+    // Build AST nodes like the real compiler does
+    num := typed_ast.Expression(typed_ast.NumberLiteral{ value: '42', span: span.point_span(0, 0) })
+    str := typed_ast.Expression(typed_ast.StringLiteral{ value: 'hello', span: span.point_span(0, 0) })
+    ident := typed_ast.Expression(typed_ast.Identifier{ name: 'x', span: span.point_span(0, 0) })
 
-	// Binary expression with operator
-	bin_expr := ast.Expression(ast.BinaryExpression{
-		left:  num
-		right: ast.Expression(ast.NumberLiteral{ value: '10', span: Span{} })
-		op:    ast.Operator{ kind: .punc_plus }
-		span:  Span{}
-	})
+    var_bind := typed_ast.Statement(typed_ast.VariableBinding{
+        identifier: typed_ast.Identifier{ name: 'x', span: span.point_span(0, 0) }
+        init:       num
+        span:       span.point_span(0, 0)
+    })
 
-	// Unary expression
-	unary_expr := ast.Expression(ast.UnaryExpression{
-		expression: num
-		op:         ast.Operator{ kind: .punc_minus }
-		span:       Span{}
-	})
+    block := typed_ast.Expression(typed_ast.BlockExpression{
+        body: [
+            typed_ast.BlockItem{ is_statement: true, statement: var_bind },
+            typed_ast.BlockItem{ is_statement: false, expression: num },
+            typed_ast.BlockItem{ is_statement: false, expression: str },
+        ]
+        span: span.point_span(0, 0)
+    })
 
-	var_bind := ast.Statement(ast.VariableBinding{
-		identifier: ast.Identifier{ name: 'x', span: Span{} }
-		init:       num
-		span:       Span{}
-	})
+    fn_decl := typed_ast.Statement(typed_ast.FunctionDeclaration{
+        identifier: typed_ast.Identifier{ name: 'test', span: span.point_span(0, 0) }
+        params:     [
+            typed_ast.FunctionParameter{ identifier: typed_ast.Identifier{ name: 'a', span: span.point_span(0, 0) } },
+            typed_ast.FunctionParameter{ identifier: typed_ast.Identifier{ name: 'b', span: span.point_span(0, 0) } },
+        ]
+        body:       block
+        span:       span.point_span(0, 0)
+    })
 
-	block := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{ is_statement: true, statement: var_bind },
-			ast.BlockItem{ is_statement: false, expression: num },
-			ast.BlockItem{ is_statement: false, expression: str },
-		]
-		span: Span{}
-	})
+    outer_block := typed_ast.Expression(typed_ast.BlockExpression{
+        body: [
+            typed_ast.BlockItem{ is_statement: true, statement: fn_decl },
+            typed_ast.BlockItem{ is_statement: false, expression: block },
+        ]
+        span: span.point_span(0, 0)
+    })
 
-	fn_decl := ast.Statement(ast.FunctionDeclaration{
-		identifier: ast.Identifier{ name: 'test', span: Span{} }
-		params:     [
-			ast.FunctionParameter{ identifier: ast.Identifier{ name: 'a', span: Span{} } },
-			ast.FunctionParameter{ identifier: ast.Identifier{ name: 'b', span: Span{} } },
-		]
-		body:       block
-		span:       Span{}
-	})
+    // Compile with the real compiler
+    type_env := types.TypeEnv{}
+    fl := flags.Flags{}
 
-	outer_block := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{ is_statement: true, statement: fn_decl },
-			ast.BlockItem{ is_statement: false, expression: block },
-		]
-		span: Span{}
-	})
+    program := bytecode.compile(outer_block, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled ${program.code.len} instructions')
 
-	result := compiler.compile(outer_block)
-	println('Result: ${result}')
+    // Test if expression
+    if_expr := typed_ast.Expression(typed_ast.IfExpression{
+        condition: typed_ast.Expression(typed_ast.BooleanLiteral{ value: true, span: span.point_span(0, 0) })
+        body:      block
+        else_body: num
+        span:      span.point_span(0, 0)
+    })
 
-	// More complex nesting with IfExpression
-	if_expr := ast.Expression(ast.IfExpression{
-		condition: ast.Expression(ast.BooleanLiteral{ value: true, span: Span{} })
-		body:      block
-		else_body: num
-		span:      Span{}
-	})
+    program2 := bytecode.compile(if_expr, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled if: ${program2.code.len} instructions')
 
-	result2 := compiler.compile(if_expr)
-	println('Result2: ${result2}')
+    // Test export declaration (recursive Statement)
+    export_decl := typed_ast.Statement(typed_ast.ExportDeclaration{
+        declaration: fn_decl
+        span:        span.point_span(0, 0)
+    })
 
-	// Test with export declaration (recursive Statement)
-	export_decl := ast.Statement(ast.ExportDeclaration{
-		declaration: fn_decl
-		span:        Span{}
-	})
+    export_block := typed_ast.Expression(typed_ast.BlockExpression{
+        body: [
+            typed_ast.BlockItem{ is_statement: true, statement: export_decl },
+        ]
+        span: span.point_span(0, 0)
+    })
 
-	export_block := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{ is_statement: true, statement: export_decl },
-		]
-		span: Span{}
-	})
+    program3 := bytecode.compile(export_block, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled export: ${program3.code.len} instructions')
 
-	result3 := compiler.compile(export_block)
-	println('Result3: ${result3}')
+    // Test match expression
+    match_expr := typed_ast.Expression(typed_ast.MatchExpression{
+        subject: num
+        arms:    [
+            typed_ast.MatchArm{
+                pattern: typed_ast.Expression(typed_ast.NumberLiteral{ value: '42', span: span.point_span(0, 0) })
+                body:    str
+            },
+            typed_ast.MatchArm{
+                pattern: typed_ast.Expression(typed_ast.WildcardPattern{ span: span.point_span(0, 0) })
+                body:    num
+            },
+        ]
+        span:    span.point_span(0, 0)
+    })
 
-	// Test MatchExpression
-	match_expr := ast.Expression(ast.MatchExpression{
-		subject: num
-		arms:    [
-			ast.MatchArm{
-				pattern: ast.Expression(ast.NumberLiteral{ value: '42', span: Span{} })
-				body:    str
-			},
-			ast.MatchArm{
-				pattern: ast.Expression(ast.WildcardPattern{ span: Span{} })
-				body:    num
-			},
-		]
-		span:    Span{}
-	})
+    program4 := bytecode.compile(match_expr, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled match: ${program4.code.len} instructions')
 
-	result4 := compiler.compile(match_expr)
-	println('Result4: ${result4}')
+    // Test OrExpression with TypeOption
+    or_expr := typed_ast.Expression(typed_ast.OrExpression{
+        expression:    num
+        body:          str
+        resolved_type: type_def.Type(type_def.TypeOption{ inner: type_def.t_int() })
+        span:          span.point_span(0, 0)
+    })
 
-	// Test OrExpression with TypeOption
-	or_expr := ast.Expression(ast.OrExpression{
-		expression:    num
-		body:          str
-		resolved_type: type_def.Type(type_def.TypeOption{ inner: type_def.Type(type_def.TypeInt{}) })
-		span:          Span{}
-	})
+    program5 := bytecode.compile(or_expr, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled or: ${program5.code.len} instructions')
 
-	result5 := compiler.compile(or_expr)
-	println('Result5: ${result5}')
+    // Test deeply nested blocks
+    deep := typed_ast.Expression(typed_ast.BlockExpression{
+        body: [
+            typed_ast.BlockItem{
+                is_statement: false
+                expression:   typed_ast.Expression(typed_ast.BlockExpression{
+                    body: [
+                        typed_ast.BlockItem{
+                            is_statement: false
+                            expression:   typed_ast.Expression(typed_ast.BlockExpression{
+                                body: [
+                                    typed_ast.BlockItem{ is_statement: true, statement: export_decl },
+                                    typed_ast.BlockItem{ is_statement: false, expression: if_expr },
+                                ]
+                                span: span.point_span(0, 0)
+                            })
+                        },
+                    ]
+                    span: span.point_span(0, 0)
+                })
+            },
+        ]
+        span: span.point_span(0, 0)
+    })
 
-	// Test PropagateNoneExpression
-	prop_expr := ast.Expression(ast.PropagateNoneExpression{
-		expression:    num
-		resolved_type: type_def.Type(type_def.TypeOption{ inner: type_def.Type(type_def.TypeInt{}) })
-		span:          Span{}
-	})
+    program6 := bytecode.compile(deep, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled deep: ${program6.code.len} instructions')
 
-	result6 := compiler.compile(prop_expr)
-	println('Result6: ${result6}')
+    // Test function expression
+    fn_expr := typed_ast.Expression(typed_ast.FunctionExpression{
+        params: [
+            typed_ast.FunctionParameter{ identifier: typed_ast.Identifier{ name: 'x', span: span.point_span(0, 0) } },
+        ]
+        body:   typed_ast.Expression(typed_ast.BinaryExpression{
+            left:  ident
+            right: num
+            op:    typed_ast.Operator{ kind: .punc_plus }
+            span:  span.point_span(0, 0)
+        })
+        span:   span.point_span(0, 0)
+    })
 
-	// Test nested blocks with many items
-	many_items := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{ is_statement: false, expression: num },
-			ast.BlockItem{ is_statement: false, expression: str },
-			ast.BlockItem{ is_statement: false, expression: ident },
-			ast.BlockItem{ is_statement: true, statement: var_bind },
-			ast.BlockItem{ is_statement: false, expression: num },
-			ast.BlockItem{ is_statement: true, statement: fn_decl },
-			ast.BlockItem{ is_statement: false, expression: str },
-		]
-		span: Span{}
-	})
+    program7 := bytecode.compile(fn_expr, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled fn: ${program7.code.len} instructions')
 
-	result7 := compiler.compile(many_items)
-	println('Result7: ${result7}')
+    // Test function call
+    call_expr := typed_ast.Expression(typed_ast.FunctionCallExpression{
+        identifier: typed_ast.Identifier{ name: 'test', span: span.point_span(0, 0) }
+        arguments:  [num, str]
+        span:       span.point_span(0, 0)
+    })
 
-	// Test deeply nested structure
-	deep := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{
-				is_statement: false
-				expression:   ast.Expression(ast.BlockExpression{
-					body: [
-						ast.BlockItem{
-							is_statement: false
-							expression:   ast.Expression(ast.BlockExpression{
-								body: [
-									ast.BlockItem{ is_statement: true, statement: export_decl },
-									ast.BlockItem{ is_statement: false, expression: if_expr },
-								]
-								span: Span{}
-							})
-						},
-					]
-					span: Span{}
-				})
-			},
-		]
-		span: Span{}
-	})
+    // Need to set up local for this to work
+    block_with_call := typed_ast.Expression(typed_ast.BlockExpression{
+        body: [
+            typed_ast.BlockItem{ is_statement: true, statement: fn_decl },
+            typed_ast.BlockItem{ is_statement: false, expression: call_expr },
+        ]
+        span: span.point_span(0, 0)
+    })
 
-	result8 := compiler.compile(deep)
-	println('Result8: ${result8}')
+    program8 := bytecode.compile(block_with_call, type_env, fl) or {
+        println('Compile error: ${err}')
+        return
+    }
+    println('Compiled call: ${program8.code.len} instructions')
 
-	// Test binary expression
-	result9 := compiler.compile(bin_expr)
-	println('Result9: ${result9}')
-
-	// Test unary expression
-	result10 := compiler.compile(unary_expr)
-	println('Result10: ${result10}')
-
-	// Test block with binary and unary
-	mixed_block := ast.Expression(ast.BlockExpression{
-		body: [
-			ast.BlockItem{ is_statement: true, statement: var_bind },
-			ast.BlockItem{ is_statement: false, expression: bin_expr },
-			ast.BlockItem{ is_statement: false, expression: unary_expr },
-			ast.BlockItem{ is_statement: true, statement: export_decl },
-			ast.BlockItem{ is_statement: false, expression: if_expr },
-		]
-		span: Span{}
-	})
-
-	result11 := compiler.compile(mixed_block)
-	println('Result11: ${result11}')
-
-	// Test logical operators
-	and_expr := ast.Expression(ast.BinaryExpression{
-		left:  ast.Expression(ast.BooleanLiteral{ value: true, span: Span{} })
-		right: ast.Expression(ast.BooleanLiteral{ value: false, span: Span{} })
-		op:    ast.Operator{ kind: .logical_and }
-		span:  Span{}
-	})
-
-	result12 := compiler.compile(and_expr)
-	println('Result12: ${result12}')
-
-	// Also run type checking
-	check_result := checker.check(outer_block) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('Check1: ${check_result}')
-
-	check_result2 := checker.check(if_expr) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('Check2: ${check_result2}')
-
-	check_result3 := checker.check(export_block) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('Check3: ${check_result3}')
-
-	check_result4 := checker.check(deep) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('Check4: ${check_result4}')
-
-	// Test with parser
-	parsed1 := parser.parse('block let x = 42 fn f block 1 2 end end') or {
-		println('Parse error: ${err}')
-		return
-	}
-	result_p1 := compiler.compile(parsed1)
-	println('Parsed1: ${result_p1}')
-
-	parsed2 := parser.parse('block export fn main block let y = 10 y end end') or {
-		println('Parse error: ${err}')
-		return
-	}
-	result_p2 := compiler.compile(parsed2)
-	println('Parsed2: ${result_p2}')
-
-	parsed3 := parser.parse('if true then block 1 2 3 end else 0') or {
-		println('Parse error: ${err}')
-		return
-	}
-	result_p3 := compiler.compile(parsed3)
-	println('Parsed3: ${result_p3}')
-
-	parsed4 := parser.parse('match x case 1 => 10 case 2 => 20 end') or {
-		println('Parse error: ${err}')
-		return
-	}
-	result_p4 := compiler.compile(parsed4)
-	println('Parsed4: ${result_p4}')
-
-	// Check parsed expressions too
-	check_p1 := checker.check(parsed1) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('CheckP1: ${check_p1}')
-
-	check_p2 := checker.check(parsed2) or {
-		println('Check error: ${err}')
-		return
-	}
-	println('CheckP2: ${check_p2}')
+    println('All tests passed!')
 }

@@ -1,6 +1,7 @@
-module ast
+module typed_ast
 
 import token
+import type_def { Type }
 import span { Span }
 
 // ============================================================================
@@ -199,10 +200,11 @@ pub:
 
 pub struct OrExpression {
 pub:
-	expression Expression
-	receiver   ?Identifier
-	body       Expression
-	span       Span @[required]
+	expression    Expression
+	receiver      ?Identifier
+	body          Expression
+	resolved_type Type
+	span          Span @[required]
 }
 
 pub struct ErrorExpression {
@@ -213,8 +215,9 @@ pub:
 
 pub struct PropagateNoneExpression {
 pub:
-	expression Expression
-	span       Span @[required]
+	expression    Expression
+	resolved_type Type
+	span          Span @[required]
 }
 
 pub struct BinaryExpression {
@@ -279,9 +282,16 @@ pub:
 	span       Span @[required]
 }
 
+pub struct BlockItem {
+pub:
+	is_statement bool
+	statement    Statement
+	expression   Expression
+}
+
 pub struct BlockExpression {
 pub:
-	body []Node
+	body []BlockItem
 	span Span @[required]
 }
 
@@ -345,11 +355,4 @@ pub type Expression = ArrayExpression
 	| UnaryExpression
 	| WildcardPattern
 
-pub type Node = Statement | Expression
-
-pub fn node_span(node Node) Span {
-	return match node {
-		Statement { node.span }
-		Expression { node.span }
-	}
-}
+// Note: Node type removed - use BlockItem in BlockExpression instead
