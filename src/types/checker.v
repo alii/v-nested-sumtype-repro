@@ -6,7 +6,6 @@ import diagnostic
 import type_def {
 	Type,
 	TypeFunction,
-	TypeStruct,
 	t_bool,
 	t_float,
 	t_int,
@@ -165,18 +164,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) (typed_ast.Statement,
 			return s, t_none()
 		}
 		ast.StructDeclaration {
-			mut fields := map[string]Type{}
-			for field in stmt.fields {
-				if resolved := c.resolve_type_identifier(field.typ) {
-					fields[field.identifier.name] = resolved
-				}
-			}
-			struct_type := TypeStruct{
-				name:   stmt.identifier.name
-				fields: fields
-			}
-			c.env.register_struct(struct_type)
-
 			mut typed_fields := []typed_ast.StructField{}
 			for f in stmt.fields {
 				mut typed_init := ?typed_ast.Expression(none)
@@ -431,17 +418,11 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) (typed_ast.Expression, Ty
 					init:       typed_init
 				}
 			}
-			struct_type := c.env.lookup_struct(expr.identifier.name) or {
-				TypeStruct{
-					name:   expr.identifier.name
-					fields: map[string]Type{}
-				}
-			}
 			return typed_ast.StructInitExpression{
 				identifier: convert_identifier(expr.identifier)
 				fields:     typed_fields
 				span:       expr.span
-			}, struct_type
+			}, t_none()
 		}
 		ast.PropertyAccessExpression {
 			typed_left, left_type := c.check_expr(expr.left)
