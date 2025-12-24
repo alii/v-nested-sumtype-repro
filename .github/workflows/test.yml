@@ -30,34 +30,21 @@ jobs:
           echo "/tmp/v" >> $GITHUB_PATH
 
       - name: Build (Debug)
-        run: v -o repro_debug .
+        run: v -o repro_debug main.v
 
       - name: Run (Debug)
         run: ./repro_debug
 
       - name: Build (Production)
-        run: v -prod -o repro_prod .
+        run: v -prod -o repro_prod main.v
 
       - name: Run (Production)
         run: ./repro_prod
 
       - name: Build (O2 only)
         if: matrix.name == 'linux'
-        run: v -cc gcc -cflags "-O2" -o repro_o2 .
+        run: v -cc gcc -cflags "-O2" -o repro_o2 main.v
 
       - name: Run (O2 only)
         if: matrix.name == 'linux'
         run: ./repro_o2
-
-      # Test minimal single-file reproduction
-      - name: Build minimal (Debug)
-        run: v -o minimal_debug minimal.v
-
-      - name: Run minimal (Debug)
-        run: ./minimal_debug
-
-      - name: Build minimal (Production)
-        run: v -prod -o minimal_prod minimal.v
-
-      - name: Run minimal (Production)
-        run: ./minimal_prod
