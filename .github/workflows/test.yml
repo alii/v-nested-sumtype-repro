@@ -48,3 +48,16 @@ jobs:
       - name: Run (O2 only)
         if: matrix.name == 'linux'
         run: ./repro_o2
+
+      # Test minimal single-file reproduction
+      - name: Build minimal (Debug)
+        run: v -o minimal_debug minimal.v
+
+      - name: Run minimal (Debug)
+        run: ./minimal_debug
+
+      - name: Build minimal (Production)
+        run: v -prod -o minimal_prod minimal.v
+
+      - name: Run minimal (Production)
+        run: ./minimal_prod
