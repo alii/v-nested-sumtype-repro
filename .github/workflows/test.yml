@@ -40,3 +40,11 @@ jobs:
 
       - name: Run (Production)
         run: ./repro_prod
+
+      - name: Build (O2 only)
+        if: matrix.name == 'linux'
+        run: v -cc gcc -cflags "-O2" -o repro_o2 .
+
+      - name: Run (O2 only)
+        if: matrix.name == 'linux'
+        run: ./repro_o2
