@@ -68,16 +68,20 @@ fn (mut c TypeChecker) check_block(block ast.BlockExpression) (typed_ast.BlockEx
 fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 	match stmt {
 		ast.VariableBinding {
+			typed_init := c.check_expr(stmt.init)
+			c.env.define(stmt.identifier.name, t_none())
 			return typed_ast.VariableBinding{
 				identifier: convert_identifier(stmt.identifier)
-				init:       c.check_expr(stmt.init)
+				init:       typed_init
 				span:       stmt.span
 			}
 		}
 		ast.ConstBinding {
+			typed_init := c.check_expr(stmt.init)
+			c.env.define(stmt.identifier.name, t_none())
 			return typed_ast.ConstBinding{
 				identifier: convert_identifier(stmt.identifier)
-				init:       c.check_expr(stmt.init)
+				init:       typed_init
 				span:       stmt.span
 			}
 		}
