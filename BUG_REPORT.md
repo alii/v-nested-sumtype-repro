@@ -13,7 +13,7 @@ The same code runs correctly:
 
 **Repository**: https://github.com/alii/v-nested-sumtype-repro
 
-**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions/runs/20492718338
+**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions/runs/20492877691
 
 ```bash
 # Clone the minimal reproduction
@@ -38,6 +38,21 @@ v -cc gcc -cflags "-O2" -o repro_o2 .
 ./repro_o2
 # Works correctly
 ```
+
+## Minimization Findings
+
+The reproduction has been minimized to ~4000 lines across 11 V source files.
+
+**Key finding**: The bug requires the interaction of BOTH:
+1. **Parser** (creates untyped AST with Statement/Expression sum types)
+2. **Type checker** (converts untyped AST to typed AST with its own Statement/Expression sum types)
+
+Neither component alone triggers the bug:
+- Parser alone: ✅ Works
+- Type checker alone: ✅ Works
+- Parser + Type checker: ❌ **Segfault**
+
+This suggests the bug is related to having multiple modules with similar sum type structures interacting.
 
 ## Expected Behavior
 
@@ -96,9 +111,22 @@ This appears to be a GCC `-O3` optimization bug specific to the generated C code
     fi
 ```
 
-## Additional Context
+## Files in Minimal Reproduction
 
-### Key code patterns that may trigger this:
+```
+src/
+├── ast/ast.v           # Untyped AST (Statement, Expression sum types)
+├── typed_ast/          # Typed AST (mirrors untyped with Type info)
+├── types/              # Type checker (converts untyped -> typed)
+├── type_def/           # Type sum type (9 variants)
+├── parser/             # Creates untyped AST
+├── scanner/            # Tokenizer for parser
+├── token/              # Token types
+├── span/               # Source location tracking
+└── diagnostic/         # Error reporting
+```
+
+## Key Code Patterns
 
 **Recursive Statement type:**
 ```v
@@ -126,27 +154,7 @@ pub type Expression = ArrayExpression
     | BinaryExpression
     | BlockExpression
     | BooleanLiteral
-    | ErrorExpression
-    | ErrorNode
-    | FunctionCallExpression
-    | FunctionExpression
-    | Identifier
-    | IfExpression
-    | InterpolatedString
-    | MatchExpression
-    | NoneExpression
-    | NumberLiteral
-    | OrExpression
-    | OrPattern
-    | PropertyAccessExpression
-    | PropagateNoneExpression
-    | RangeExpression
-    | SpreadExpression
-    | StringLiteral
-    | StructInitExpression
-    | TypeIdentifier
-    | UnaryExpression
-    | WildcardPattern
+    // ... 21 more variants
 ```
 
 **BlockItem bridging both types:**
@@ -157,37 +165,19 @@ pub:
     statement    Statement
     expression   Expression
 }
-
-pub struct BlockExpression {
-pub:
-    body []BlockItem
-    span Span @[required]
-}
 ```
 
-**Iteration pattern in compiler:**
+**Type sum type (9 variants):**
 ```v
-fn (mut c Compiler) compile_expr(expr typed_ast.Expression) ! {
-    match expr {
-        typed_ast.BlockExpression {
-            last_idx := expr.body.len - 1
-            for i, item in expr.body {
-                is_last := i == last_idx
-                if item.is_statement {
-                    c.compile_statement(item.statement)!
-                } else {
-                    c.compile_expr(item.expression)!
-                }
-            }
-        }
-        // 26 other cases...
-    }
-}
+pub type Type = TypeArray
+    | TypeBase
+    | TypeEnum
+    | TypeFunction
+    | TypeOption
+    | TypeResult
+    | TypeStruct
+    | TypeTuple
+    | TypeVar
 ```
 
-The full source is at: https://github.com/alii/al
-
-Relevant files:
-- `src/typed_ast/typed_ast.v` - Sum type definitions
-- `src/bytecode/compiler.v` - Code that triggers the bug
-- `src/types/checker.v` - Also walks the AST similarly
+The full original source is at: https://github.com/alii/al
