@@ -1,0 +1,42 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download V
+        run: |
+          if [ "${{ matrix.name }}" = "linux" ]; then
+            curl -sL https://github.com/vlang/v/releases/latest/download/v_linux.zip -o /tmp/v.zip
+          else
+            curl -sL https://github.com/vlang/v/releases/latest/download/v_macos_arm64.zip -o /tmp/v.zip
+          fi
+          unzip -q /tmp/v.zip -d /tmp
+          echo "/tmp/v" >> $GITHUB_PATH
+
+      - name: Build (Debug)
+        run: v -o repro_debug .
+
+      - name: Run (Debug)
+        run: ./repro_debug
+
+      - name: Build (Production)
+        run: v -prod -o repro_prod .
+
+      - name: Run (Production)
+        run: ./repro_prod
