@@ -2,6 +2,7 @@ module main
 
 import src.typed_ast
 import src.bytecode
+import src.vm
 import src.types
 import src.flags
 import src.span { Span }
@@ -197,6 +198,44 @@ fn main() {
         return
     }
     println('Compiled call: ${program8.code.len} instructions')
+
+    // Now run some programs through the VM
+    println('\n--- Running VM ---')
+
+    mut vm1 := vm.new_vm(program, fl)
+    result1 := vm1.run() or {
+        println('VM error: ${err}')
+        return
+    }
+    println('VM result1: ${result1}')
+
+    mut vm2 := vm.new_vm(program2, fl)
+    result2 := vm2.run() or {
+        println('VM error: ${err}')
+        return
+    }
+    println('VM result2: ${result2}')
+
+    mut vm3 := vm.new_vm(program3, fl)
+    result3 := vm3.run() or {
+        println('VM error: ${err}')
+        return
+    }
+    println('VM result3: ${result3}')
+
+    mut vm4 := vm.new_vm(program4, fl)
+    result4 := vm4.run() or {
+        println('VM error: ${err}')
+        return
+    }
+    println('VM result4: ${result4}')
+
+    mut vm6 := vm.new_vm(program6, fl)
+    result6 := vm6.run() or {
+        println('VM error: ${err}')
+        return
+    }
+    println('VM result6: ${result6}')
 
     println('All tests passed!')
 }
