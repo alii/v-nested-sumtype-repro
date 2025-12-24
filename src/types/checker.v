@@ -69,6 +69,7 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 	match stmt {
 		ast.VariableBinding {
 			typed_init := c.check_expr(stmt.init)
+			c.env.define(stmt.identifier.name, t_none())
 			return typed_ast.VariableBinding{
 				identifier: convert_identifier(stmt.identifier)
 				init:       typed_init
