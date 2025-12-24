@@ -88,12 +88,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 				span:       stmt.span
 			}
 		}
-		ast.StructDeclaration {
-			return typed_ast.StructDeclaration{
-				identifier: convert_identifier(stmt.identifier)
-				span:       stmt.span
-			}
-		}
 		ast.ExportDeclaration {
 			return typed_ast.ExportDeclaration{
 				declaration: c.check_statement(stmt.declaration)
@@ -174,13 +168,6 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 		ast.ArrayExpression {
 			return typed_ast.ArrayExpression{
 				span: expr.span
-			}
-		}
-		ast.ArrayIndexExpression {
-			return typed_ast.ArrayIndexExpression{
-				expression: c.check_expr(expr.expression)
-				index:      c.check_expr(expr.index)
-				span:       expr.span
 			}
 		}
 		ast.PropertyAccessExpression {

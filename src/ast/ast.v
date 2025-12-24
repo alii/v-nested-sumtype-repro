@@ -156,7 +156,6 @@ pub:
 
 pub type Statement = ExportDeclaration
 	| FunctionDeclaration
-	| StructDeclaration
 	| VariableBinding
 
 // ============================================================================
@@ -314,7 +313,6 @@ pub:
 // ============================================================================
 
 pub type Expression = ArrayExpression
-	| ArrayIndexExpression
 	| BinaryExpression
 	| BlockExpression
 	| BooleanLiteral

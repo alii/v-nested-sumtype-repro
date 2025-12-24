@@ -526,15 +526,10 @@ fn (mut p Parser) parse_postfix_expression() !ast.Expression {
 				if p.current_token.leading_trivia.len > 0 {
 					break
 				}
-				start := expr.span
 				p.eat(.punc_open_bracket)!
-				index := p.parse_expression()!
+				_ = p.parse_expression()! // discard index
 				p.eat(.punc_close_bracket)!
-				expr = ast.ArrayIndexExpression{
-					expression: expr
-					index:      index
-					span:       p.span_from(start)
-				}
+				// ArrayIndexExpression removed, keep expr unchanged
 			}
 			.punc_question_mark {
 				p.eat(.punc_question_mark)!
@@ -1125,23 +1120,25 @@ fn (mut p Parser) parse_struct_declaration() !ast.Statement {
 	p.eat(.punc_open_brace)!
 	p.push_context(.struct_def)
 
-	mut fields := []ast.StructField{}
-
+	// Parse and discard fields since StructDeclaration is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		field := p.parse_struct_field()!
-		fields << field
+		_ = p.parse_struct_field()!
 	}
 
 	p.pop_context()
 	p.eat(.punc_close_brace)!
 
-	return ast.StructDeclaration{
+	// Return a dummy VariableBinding since StructDeclaration is removed
+	return ast.VariableBinding{
 		identifier: ast.Identifier{
 			name: name
 			span: id_span
 		}
-		fields:     fields
-		span:       p.span_from(struct_span)
+		init: ast.NumberLiteral{
+			value: '0'
+			span:  struct_span
+		}
+		span: p.span_from(struct_span)
 	}
 }
 
