@@ -71,8 +71,8 @@ The reproduction has been minimized to ~2700 lines across the source files.
 
 5. **Sum type size matters**: The bug is sensitive to the number of variants:
    - With 12 Expression + 3 Statement variants: ✅ **Works** (no crash)
-   - With 27 Expression + 8 Statement variants: ❌ **Segfault**
-   - The threshold appears to be somewhere between these values
+   - With 13 Expression + 3 Statement variants: ❌ **Segfault**
+   - The threshold is exactly 13 Expression variants - adding just 1 more variant to a working 12-variant sum type triggers the bug
 
 ## Expected Behavior
 
