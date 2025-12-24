@@ -78,6 +78,7 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 		}
 		ast.ConstBinding {
 			typed_init := c.check_expr(stmt.init)
+			c.env.define(stmt.identifier.name, t_none())
 			return typed_ast.ConstBinding{
 				identifier: convert_identifier(stmt.identifier)
 				init:       typed_init
@@ -92,6 +93,10 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 			}
 		}
 		ast.FunctionDeclaration {
+			c.env.define(stmt.identifier.name, t_none())
+			for param in stmt.params {
+				c.env.define(param.identifier.name, t_none())
+			}
 			typed_body := c.check_expr(stmt.body)
 			return typed_ast.FunctionDeclaration{
 				identifier: convert_identifier(stmt.identifier)
