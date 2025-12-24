@@ -9,25 +9,33 @@ The same code runs correctly:
 - On Linux with debug builds (no optimization)
 - On Linux with `-O2` (but NOT `-O3`)
 
-## Reproduction Steps
+## Minimal Reproduction
+
+**Repository**: https://github.com/alii/v-nested-sumtype-repro
+
+**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions/runs/20492718338
 
 ```bash
-# Clone the project
-git clone https://github.com/alii/al
-cd al
+# Clone the minimal reproduction
+git clone https://github.com/alii/v-nested-sumtype-repro
+cd v-nested-sumtype-repro
 
 # Build with -prod (triggers segfault on Linux x86_64)
-v -prod -o al .
+v -prod -o repro_prod .
 
-# Run any program
-./al run program/src/all_language_features.al
+# Run - crashes on Linux x86_64
+./repro_prod
 # Result: signal 11: segmentation fault (exit code 139)
 ```
 
+The CI shows:
+- **Linux x86_64**: `Run (Production)` fails with segfault
+- **macOS ARM64**: All tests pass
+
 ### Workaround that works:
 ```bash
-v -cc gcc -cflags "-O2" -o al .
-./al run program/src/all_language_features.al
+v -cc gcc -cflags "-O2" -o repro_o2 .
+./repro_o2
 # Works correctly
 ```
 
@@ -42,24 +50,21 @@ The program should run without crashing, the same as it does:
 
 The program crashes with:
 ```
+Parsed AST with 25 nodes
 signal 11: segmentation fault
-                                                        | 0x564a2bbf318b | ./al(+0x7f18b)
-                                                        | 0x564a2bc199a5 | ./al(+0xa59a5)
-                                                        | 0x564a2bca85c8 | ./al(+0x1345c8)
-                                                        | 0x564a2bcaa03a | ./al(+0x13603a)
-                                                        | 0x564a2bcab7ba | ./al(+0x1377ba)
-                                                        | 0x564a2bc887d9 | ./al(+0x1147d9)
-                                                        | 0x564a2bbe90cb | ./al(+0x750cb)
-                                                        | 0x564a2bc62669 | ./al(+0xee669)
-                                                        | 0x564a2bc13680 | ./al(+0x9f680)
-                                                        | 0x564a2bc1388c | ./al(+0x9f88c)
-                                                        | 0x564a2bc56aff | ./al(+0xe2aff)
-                                                        | 0x564a2bb802af | ./al(+0xc2af)
-                                                        | 0x7f388ee2a1ca | /lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)
-                                                        | 0x7f388ee2a28b | /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)
-                                                        | 0x564a2bb802e5 | ./al(+0xc2e5)
+                                                        | 0x55591aa6086b | ./repro_prod(+0x1486b)
+                                                        | 0x55591aa67ab9 | ./repro_prod(+0x1bab9)
+                                                        | 0x55591aab4075 | ./repro_prod(+0x68075)
+                                                        | 0x55591aab56d6 | ./repro_prod(+0x696d6)
+                                                        | 0x55591aa92218 | ./repro_prod(+0x46218)
+                                                        | 0x55591aa4fc0f | ./repro_prod(+0x3c0f)
+                                                        | 0x7fdfa442a1ca | /lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)
+                                                        | 0x7fdfa442a28b | /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)
+                                                        | 0x55591aa4fc45 | ./repro_prod(+0x3c45)
 Process completed with exit code 139.
 ```
+
+The crash occurs during the type checker phase, after parsing successfully completes.
 
 ## V Version
 
