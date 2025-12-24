@@ -2,6 +2,7 @@ module main
 
 import src.ast
 import src.compiler
+import src.checker
 import src.span { Span }
 import src.type_def
 
@@ -207,4 +208,29 @@ fn main() {
 
 	result12 := compiler.compile(and_expr)
 	println('Result12: ${result12}')
+
+	// Also run type checking
+	check_result := checker.check(outer_block) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('Check1: ${check_result}')
+
+	check_result2 := checker.check(if_expr) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('Check2: ${check_result2}')
+
+	check_result3 := checker.check(export_block) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('Check3: ${check_result3}')
+
+	check_result4 := checker.check(deep) or {
+		println('Check error: ${err}')
+		return
+	}
+	println('Check4: ${check_result4}')
 }
