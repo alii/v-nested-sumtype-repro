@@ -13,7 +13,7 @@ The same code runs correctly:
 
 **Repository**: https://github.com/alii/v-nested-sumtype-repro
 
-**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions/runs/20492877691
+**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions
 
 ```bash
 # Clone the minimal reproduction
@@ -41,18 +41,33 @@ v -cc gcc -cflags "-O2" -o repro_o2 .
 
 ## Minimization Findings
 
-The reproduction has been minimized to ~4000 lines across 11 V source files.
+The reproduction has been minimized to ~2700 lines across the source files.
 
-**Key finding**: The bug requires the interaction of BOTH:
-1. **Parser** (creates untyped AST with Statement/Expression sum types)
-2. **Type checker** (converts untyped AST to typed AST with its own Statement/Expression sum types)
+### Key Findings
 
-Neither component alone triggers the bug:
-- Parser alone: ✅ Works
-- Type checker alone: ✅ Works
-- Parser + Type checker: ❌ **Segfault**
+1. **Requires both parser AND type checker**: Neither component alone triggers the bug
+   - Parser alone: ✅ Works
+   - Type checker alone: ✅ Works
+   - Parser + Type checker: ❌ **Segfault**
 
-This suggests the bug is related to having multiple modules with similar sum type structures interacting.
+2. **Requires actual TypeEnv usage**: The bug does NOT trigger if:
+   - TypeEnv struct exists but is never used
+   - Only a single define() call is made
+
+   The bug DOES trigger when:
+   - Multiple define() calls are made to a `map[string]Type`
+   - This happens during type checking of variable/const/function declarations
+
+3. **Minimal type checker triggers it**: Even with:
+   - No type inference or unification
+   - No error checking
+   - Just pure AST conversion from `ast.*` to `typed_ast.*`
+   - Plus multiple `c.env.define(name, type)` calls
+
+4. **The trigger appears to be**: The combination of:
+   - Large match expressions (8 Statement variants, 27 Expression variants)
+   - Two similar sum type hierarchies in different modules (ast and typed_ast)
+   - Writes to a `map[string]Type` during match processing
 
 ## Expected Behavior
 
@@ -98,7 +113,7 @@ Latest V (tested on weekly.2025.49-103-g1cdb0f57 and in CI with latest download)
 
 ## Possible Solution
 
-This appears to be a GCC `-O3` optimization bug specific to the generated C code for nested/recursive sum types. The workaround is to use `-O2` instead of `-O3` on Linux:
+This appears to be a GCC `-O3` optimization bug specific to the generated C code for nested/recursive sum types combined with map writes. The workaround is to use `-O2` instead of `-O3` on Linux:
 
 ```yaml
 # In CI workflow:
@@ -115,15 +130,46 @@ This appears to be a GCC `-O3` optimization bug specific to the generated C code
 
 ```
 src/
-├── ast/ast.v           # Untyped AST (Statement, Expression sum types)
-├── typed_ast/          # Typed AST (mirrors untyped with Type info)
-├── types/              # Type checker (converts untyped -> typed)
+├── ast/ast.v           # Untyped AST (Statement 8 variants, Expression 27 variants)
+├── typed_ast/          # Typed AST (mirrors untyped structure)
+├── types/
+│   ├── checker.v       # Minimal type checker (~320 lines)
+│   └── environment.v   # Simple TypeEnv with map[string]Type (~18 lines)
 ├── type_def/           # Type sum type (9 variants)
-├── parser/             # Creates untyped AST
+├── parser/             # Creates untyped AST (~1600 lines)
 ├── scanner/            # Tokenizer for parser
 ├── token/              # Token types
 ├── span/               # Source location tracking
 └── diagnostic/         # Error reporting
+```
+
+## Minimal Type Checker That Triggers Bug
+
+The type checker has been minimized to just:
+
+```v
+pub struct TypeEnv {
+mut:
+    bindings map[string]Type
+}
+
+pub fn (mut e TypeEnv) define(name string, t Type) {
+    e.bindings[name] = t  // Writing to this map during match processing triggers the bug
+}
+```
+
+And the check_statement function:
+```v
+fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
+    match stmt {
+        ast.VariableBinding {
+            typed_init := c.check_expr(stmt.init)
+            c.env.define(stmt.identifier.name, t_none())  // This triggers it
+            return typed_ast.VariableBinding{ ... }
+        }
+        // ... other variants
+    }
+}
 ```
 
 ## Key Code Patterns
@@ -165,19 +211,6 @@ pub:
     statement    Statement
     expression   Expression
 }
-```
-
-**Type sum type (9 variants):**
-```v
-pub type Type = TypeArray
-    | TypeBase
-    | TypeEnum
-    | TypeFunction
-    | TypeOption
-    | TypeResult
-    | TypeStruct
-    | TypeTuple
-    | TypeVar
 ```
 
 The full original source is at: https://github.com/alii/al
