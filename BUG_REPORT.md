@@ -2,7 +2,7 @@
 
 ## Description
 
-When using complex nested sum types (recursive Statement type, large Expression sum type with 27 variants, and BlockItem struct bridging both), the V compiler generates code that causes a segmentation fault when compiled with `-prod` (which enables `-O3`) on Linux x86_64.
+When using nested sum types (recursive Statement type, Expression sum type with multiple variants, and Node sum type bridging both), the V compiler generates code that causes a segmentation fault when compiled with `-prod` (which enables `-O3`) on Linux x86_64.
 
 The same code runs correctly:
 - On macOS with `-prod`
@@ -41,7 +41,7 @@ v -cc gcc -cflags "-O2" -o repro_o2 .
 
 ## Minimization Findings
 
-The reproduction has been minimized to ~2700 lines across the source files.
+The reproduction has been minimized to ~2200 lines across the source files.
 
 ### Key Findings
 
@@ -56,7 +56,7 @@ The reproduction has been minimized to ~2700 lines across the source files.
 
    The bug DOES trigger when:
    - Multiple define() calls are made to a `map[string]Type`
-   - This happens during type checking of variable/const/function declarations
+   - This happens during type checking of variable/function declarations
 
 3. **Minimal type checker triggers it**: Even with:
    - No type inference or unification
@@ -65,7 +65,7 @@ The reproduction has been minimized to ~2700 lines across the source files.
    - Plus multiple `c.env.define(name, type)` calls
 
 4. **The trigger appears to be**: The combination of:
-   - Large match expressions (8 Statement variants, 27 Expression variants)
+   - Match expressions on sum types (3 Statement variants, 12 Expression variants)
    - Two similar sum type hierarchies in different modules (ast and typed_ast)
    - Writes to a `map[string]Type` during match processing
 
@@ -80,7 +80,7 @@ The program should run without crashing, the same as it does:
 
 The program crashes with:
 ```
-Parsed AST with 25 nodes
+Parsed AST with 22 nodes
 signal 11: segmentation fault
                                                         | 0x55591aa6086b | ./repro_prod(+0x1486b)
                                                         | 0x55591aa67ab9 | ./repro_prod(+0x1bab9)
@@ -130,13 +130,13 @@ This appears to be a GCC `-O3` optimization bug specific to the generated C code
 
 ```
 src/
-├── ast/ast.v           # Untyped AST (Statement 8 variants, Expression 27 variants)
+├── ast/ast.v           # Untyped AST (Statement 3 variants, Expression 12 variants)
 ├── typed_ast/          # Typed AST (mirrors untyped structure)
 ├── types/
-│   ├── checker.v       # Minimal type checker (~320 lines)
+│   ├── checker.v       # Minimal type checker (~200 lines)
 │   └── environment.v   # Simple TypeEnv with map[string]Type (~18 lines)
-├── type_def/           # Type sum type (9 variants)
-├── parser/             # Creates untyped AST (~1600 lines)
+├── type_def/           # Type sum type (5 variants, ~57 lines)
+├── parser/             # Creates untyped AST (~618 lines)
 ├── scanner/            # Tokenizer for parser
 ├── token/              # Token types
 ├── span/               # Source location tracking
@@ -182,35 +182,30 @@ pub:
     span        Span @[required]
 }
 
-pub type Statement = ConstBinding
-    | EnumDeclaration
-    | ExportDeclaration  // <- recursive reference
+pub type Statement = ExportDeclaration  // <- recursive reference
     | FunctionDeclaration
-    | ImportDeclaration
-    | StructDeclaration
-    | TypePatternBinding
     | VariableBinding
 ```
 
-**Large Expression sum type (27 variants):**
+**Expression sum type (12 variants):**
 ```v
 pub type Expression = ArrayExpression
     | ArrayIndexExpression
-    | AssertExpression
     | BinaryExpression
     | BlockExpression
     | BooleanLiteral
-    // ... 21 more variants
+    | ErrorNode
+    | FunctionCallExpression
+    | FunctionExpression
+    | Identifier
+    | IfExpression
+    | NumberLiteral
+    | StringLiteral
 ```
 
-**BlockItem bridging both types:**
+**Node bridging both types:**
 ```v
-pub struct BlockItem {
-pub:
-    is_statement bool
-    statement    Statement
-    expression   Expression
-}
+pub type Node = Statement | Expression
 ```
 
 The full original source is at: https://github.com/alii/al

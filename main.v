@@ -6,34 +6,24 @@ import src.scanner
 
 fn main() {
     source := '
-struct User {
-    id Int,
-    name Int,
-}
-
-enum Result {
-    Ok(Int)
-    Err(Int)
-}
-
 x = 10
-x = x + 1
+y = x + 1
 
-fn add(a Int, b Int) Int { a + b }
+fn add(a, b) { a + b }
 
-fn greet(n Int) Int { n }
+fn greet(n) { n }
 
-callback = fn(x Int) Int { x * 2 }
+callback = fn(x) { x * 2 }
 
-fn max(a Int, b Int) Int {
+fn max(a, b) {
     if a > b { a } else { b }
 }
 
-fn classify(n Int) Int {
+fn classify(n) {
     if n < 0 { 0 - 1 } else if n == 0 { 0 } else { 1 }
 }
 
-fn example() Int {
+fn example() {
     result = {
         a = 10
         b = 20
@@ -44,8 +34,6 @@ fn example() Int {
 
 numbers = [1, 2, 3, 4, 5]
 first = numbers[0]
-
-range = 0..10
 
 sum = 1 + 2
 diff = 5 - 3
@@ -61,7 +49,7 @@ gt = a > b
 add_result = add(5, 3)
 max_result = max(10, 20)
 
-export fn main_fn() Int {
+export fn main_fn() {
     add_result + max_result
 }
 '
@@ -72,7 +60,6 @@ export fn main_fn() Int {
 
     println('Parsed AST with ${result.ast.body.len} nodes')
 
-    // Type check - this is where the crash happens
     check_result := types.check(result.ast)
     if !check_result.success {
         println('Type check failed')
