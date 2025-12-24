@@ -155,8 +155,7 @@ pub:
 	span        Span @[required]
 }
 
-pub type Statement = EnumDeclaration
-	| ExportDeclaration
+pub type Statement = ExportDeclaration
 	| FunctionDeclaration
 	| StructDeclaration
 	| VariableBinding
@@ -334,11 +333,9 @@ pub type Expression = ArrayExpression
 	| FunctionExpression
 	| Identifier
 	| IfExpression
-	| MatchExpression
 	| NumberLiteral
 	| PropertyAccessExpression
 	| StringLiteral
-	| StructInitExpression
 	| UnaryExpression
 
 // Note: Node type removed - use BlockItem in BlockExpression instead

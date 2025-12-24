@@ -94,12 +94,6 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 				span:       stmt.span
 			}
 		}
-		ast.EnumDeclaration {
-			return typed_ast.EnumDeclaration{
-				identifier: convert_identifier(stmt.identifier)
-				span:       stmt.span
-			}
-		}
 		ast.ExportDeclaration {
 			return typed_ast.ExportDeclaration{
 				declaration: c.check_statement(stmt.declaration)
@@ -189,23 +183,11 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 				span:       expr.span
 			}
 		}
-		ast.StructInitExpression {
-			return typed_ast.StructInitExpression{
-				identifier: convert_identifier(expr.identifier)
-				span:       expr.span
-			}
-		}
 		ast.PropertyAccessExpression {
 			return typed_ast.PropertyAccessExpression{
 				left:  c.check_expr(expr.left)
 				right: c.check_expr(expr.right)
 				span:  expr.span
-			}
-		}
-		ast.MatchExpression {
-			return typed_ast.MatchExpression{
-				subject: c.check_expr(expr.subject)
-				span:    expr.span
 			}
 		}
 		ast.ErrorNode {

@@ -791,7 +791,6 @@ fn (mut p Parser) parse_if_expression() !ast.Expression {
 }
 
 fn (mut p Parser) parse_match_expression() !ast.Expression {
-	match_span := p.current_span()
 	p.eat(.kw_match)!
 
 	subject := p.parse_expression()!
@@ -799,18 +798,12 @@ fn (mut p Parser) parse_match_expression() !ast.Expression {
 	p.eat(.punc_open_brace)!
 	p.push_context(.match_arms)
 
-	mut arms := []ast.MatchArm{}
-
+	// Parse and discard match arms since MatchExpression is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		first_pattern := if p.current_token.kind == .kw_else {
-			span := p.current_span()
+		if p.current_token.kind == .kw_else {
 			p.eat(.kw_else)!
-			ast.Expression(ast.Identifier{
-				name: '_'
-				span: span
-			})
 		} else {
-			p.parse_expression() or {
+			_ = p.parse_expression() or {
 				p.add_error(err.msg())
 				p.synchronize()
 				if p.current_token.kind == .punc_close_brace {
@@ -820,19 +813,13 @@ fn (mut p Parser) parse_match_expression() !ast.Expression {
 			}
 		}
 
-		pattern := if p.current_token.kind == .bitwise_or {
-			// Parse but ignore subsequent or-patterns, just use first
-			for p.current_token.kind == .bitwise_or {
-				p.eat(.bitwise_or)!
-				_ = p.parse_expression() or {
-					p.add_error(err.msg())
-					p.synchronize()
-					break
-				}
+		for p.current_token.kind == .bitwise_or {
+			p.eat(.bitwise_or)!
+			_ = p.parse_expression() or {
+				p.add_error(err.msg())
+				p.synchronize()
+				break
 			}
-			first_pattern
-		} else {
-			first_pattern
 		}
 
 		p.eat(.punc_arrow) or {
@@ -844,22 +831,13 @@ fn (mut p Parser) parse_match_expression() !ast.Expression {
 			continue
 		}
 
-		body_span := p.current_span()
-		body := p.parse_expression() or {
+		_ = p.parse_expression() or {
 			p.add_error(err.msg())
 			p.synchronize()
 			if p.current_token.kind == .punc_close_brace {
 				break
 			}
-			ast.ErrorNode{
-				message: err.msg()
-				span:    body_span
-			}
-		}
-
-		arms << ast.MatchArm{
-			pattern: pattern
-			body:    body
+			continue
 		}
 
 		if p.current_token.kind == .punc_comma {
@@ -870,11 +848,7 @@ fn (mut p Parser) parse_match_expression() !ast.Expression {
 	p.pop_context()
 	p.eat(.punc_close_brace)!
 
-	return ast.MatchExpression{
-		subject: subject
-		arms:    arms
-		span:    p.span_from(match_span)
-	}
+	return subject
 }
 
 fn (mut p Parser) parse_function() !ast.Node {
@@ -1208,23 +1182,25 @@ fn (mut p Parser) parse_enum_declaration() !ast.Statement {
 	p.eat(.punc_open_brace)!
 	p.push_context(.enum_def)
 
-	mut variants := []ast.EnumVariant{}
-
+	// Parse and discard variants since EnumDeclaration is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		variant := p.parse_enum_variant()!
-		variants << variant
+		_ = p.parse_enum_variant()!
 	}
 
 	p.pop_context()
 	p.eat(.punc_close_brace)!
 
-	return ast.EnumDeclaration{
+	// Return a dummy VariableBinding since EnumDeclaration is removed
+	return ast.VariableBinding{
 		identifier: ast.Identifier{
 			name: name
 			span: id_span
 		}
-		variants:   variants
-		span:       p.span_from(enum_span)
+		init: ast.NumberLiteral{
+			value: '0'
+			span:  enum_span
+		}
+		span: p.span_from(enum_span)
 	}
 }
 
@@ -1265,21 +1241,11 @@ fn (mut p Parser) parse_struct_init_expression(name string, name_span sp.Span) !
 	p.eat(.punc_open_brace)!
 	p.push_context(.struct_init)
 
-	mut fields := []ast.StructInitField{}
-
+	// Parse and discard fields since StructInitExpression is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		field_span := p.current_span()
-		field_name := p.eat_token_literal(.identifier, 'Expected field name')!
+		_ = p.eat_token_literal(.identifier, 'Expected field name')!
 		p.eat(.punc_colon)!
-		value := p.parse_expression()!
-
-		fields << ast.StructInitField{
-			identifier: ast.Identifier{
-				name: field_name
-				span: field_span
-			}
-			init:       value
-		}
+		_ = p.parse_expression()!
 
 		if p.current_token.kind == .punc_comma {
 			p.eat(.punc_comma)!
@@ -1289,13 +1255,10 @@ fn (mut p Parser) parse_struct_init_expression(name string, name_span sp.Span) !
 	p.pop_context()
 	p.eat(.punc_close_brace)!
 
-	return ast.StructInitExpression{
-		identifier: ast.Identifier{
-			name: name
-			span: name_span
-		}
-		fields:     fields
-		span:       p.span_from(name_span)
+	// Return just an Identifier since StructInitExpression is removed
+	return ast.Identifier{
+		name: name
+		span: name_span
 	}
 }
 
