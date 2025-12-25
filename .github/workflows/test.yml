@@ -30,20 +30,20 @@ jobs:
           echo "/tmp/v" >> $GITHUB_PATH
 
       - name: Build (Debug)
-        run: v -o repro_debug .
+        run: v -o repro_debug repro.v
 
       - name: Run (Debug)
         run: ./repro_debug
 
       - name: Build (Production)
-        run: v -prod -o repro_prod .
+        run: v -prod -o repro_prod repro.v
 
       - name: Run (Production)
         run: ./repro_prod
 
       - name: Build (O2 only)
         if: matrix.name == 'linux'
-        run: v -cc gcc -cflags "-O2" -o repro_o2 .
+        run: v -cc gcc -cflags "-O2" -o repro_o2 repro.v
 
       - name: Run (O2 only)
         if: matrix.name == 'linux'
