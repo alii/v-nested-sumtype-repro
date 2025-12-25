@@ -273,33 +273,15 @@ pub fn (mut p Parser) parse_program() ParseResult {
 }
 
 fn (mut p Parser) parse_node() !ast.Node {
-	// Try to parse as a statement first (keywords)
 	match p.current_token.kind {
-		.kw_const {
-			return ast.Node(p.parse_const_binding()!)
-		}
 		.kw_function {
 			return p.parse_function()!
 		}
-		.kw_struct {
-			return ast.Node(p.parse_struct_declaration()!)
-		}
-		.kw_enum {
-			return ast.Node(p.parse_enum_declaration()!)
-		}
-		.kw_import {
-			return ast.Node(p.parse_import_declaration()!)
-		}
-		.kw_export {
-			return ast.Node(p.parse_export_declaration()!)
-		}
 		.identifier {
-			// Check for binding patterns: identifier = or identifier Type =
 			if next := p.peek_next() {
 				if next.kind == .punc_equals {
 					return ast.Node(p.parse_binding()!)
 				}
-				// Check if it's an identifier followed by a type annotation
 				if p.is_type_start_at_next() {
 					return ast.Node(p.parse_binding()!)
 				}
@@ -307,7 +289,6 @@ fn (mut p Parser) parse_node() !ast.Node {
 		}
 		else {}
 	}
-	// Otherwise parse as expression
 	return ast.Node(p.parse_expression()!)
 }
 
