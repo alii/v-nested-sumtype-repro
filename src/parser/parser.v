@@ -263,38 +263,6 @@ fn (mut p Parser) parse_additive() !ast.Expression {
 }
 
 fn (mut p Parser) parse_unary_expression() !ast.Expression {
-	if p.current_token.kind == .punc_exclamation_mark {
-		start := p.current_span()
-		p.eat(.punc_exclamation_mark)!
-		inner := p.parse_unary_expression()!
-
-		return ast.UnaryExpression{
-			expression: inner
-			op:         ast.Operator{
-				kind: .punc_exclamation_mark
-			}
-			span:       p.span_from(start)
-		}
-	}
-
-	if p.current_token.kind == .punc_minus {
-		start := p.current_span()
-		p.eat(.punc_minus)!
-		inner := p.parse_unary_expression()!
-
-		return ast.UnaryExpression{
-			expression: inner
-			op:         ast.Operator{
-				kind: .punc_minus
-			}
-			span:       p.span_from(start)
-		}
-	}
-
-	return p.parse_postfix_expression()!
-}
-
-fn (mut p Parser) parse_postfix_expression() !ast.Expression {
 	return p.parse_primary_expression()!
 }
 
