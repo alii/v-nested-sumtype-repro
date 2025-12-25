@@ -1266,26 +1266,6 @@ fn (mut p Parser) parse_binding() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_export_declaration() !ast.Statement {
-	span := p.current_span()
-	p.eat(.kw_export)!
-
-	// Export must be followed by a statement (function, struct, enum, const, or binding)
-	decl := match p.current_token.kind {
-		.kw_function { p.parse_function_declaration()! }
-		.kw_struct { p.parse_struct_declaration()! }
-		.kw_enum { p.parse_enum_declaration()! }
-		.kw_const { p.parse_const_binding()! }
-		.identifier { p.parse_binding()! }
-		else { return error('Expected declaration after export') }
-	}
-
-	return ast.ExportDeclaration{
-		declaration: decl
-		span:        span
-	}
-}
-
 fn (mut p Parser) parse_import_declaration() !ast.Statement {
 	import_span := p.current_span()
 	p.eat(.kw_from)!
