@@ -25,13 +25,13 @@ v -cc gcc -cflags "-O2" -o repro repro.v
 
 ## What Works vs What Crashes
 
-| Environment | Build Command | Result |
-|-------------|---------------|--------|
-| Linux x86_64 | `v -prod repro.v` | **Segfault** |
-| Linux x86_64 | `v repro.v` (debug) | Works |
-| Linux x86_64 | `v -cc gcc -cflags "-O2" repro.v` | Works |
-| macOS ARM64 | `v -prod repro.v` | Works |
-| macOS ARM64 | `v repro.v` (debug) | Works |
+| Environment  | Build Command                     | Result       |
+| ------------ | --------------------------------- | ------------ |
+| Linux x86_64 | `v -prod repro.v`                 | **Segfault** |
+| Linux x86_64 | `v repro.v` (debug)               | Works        |
+| Linux x86_64 | `v -cc gcc -cflags "-O2" repro.v` | Works        |
+| macOS ARM64  | `v -prod repro.v`                 | Works        |
+| macOS ARM64  | `v repro.v` (debug)               | Works        |
 
 ## Root Cause Analysis
 
@@ -40,6 +40,7 @@ After extensive minimization (4000 lines → 476 lines), we identified the trigg
 ### The Magic Number: 13 Expression Variants
 
 The bug is extremely sensitive to sum type size:
+
 - **12 Expression variants**: Works
 - **13 Expression variants**: **Segfault**
 
@@ -48,6 +49,7 @@ This is the exact threshold - adding just one more variant to a working 12-varia
 ### Required Components
 
 The bug requires ALL of these together:
+
 1. **Two parallel sum type hierarchies** (AST and TypedAST with same structure)
 2. **13+ Expression variants** in each hierarchy
 3. **Recursive Statement type** (ExportDeclaration contains Statement)
@@ -103,17 +105,18 @@ The crash occurs in the type checker phase, after parsing completes successfully
 
 ## Minimization Journey
 
-| Stage | Lines | Files | Bug Triggers? |
-|-------|-------|-------|---------------|
-| Original codebase | ~4000 | 18+ | Yes |
-| After removing unrelated features | ~2350 | 18 | Yes |
-| After compacting utilities | ~1600 | 15 | Yes |
-| After compacting all files | ~950 | 13 | Yes |
-| **Single file** | **476** | **1** | **Yes** |
+| Stage                             | Lines   | Files | Bug Triggers? |
+| --------------------------------- | ------- | ----- | ------------- |
+| Original codebase                 | ~4000   | 18+   | Yes           |
+| After removing unrelated features | ~2350   | 18    | Yes           |
+| After compacting utilities        | ~1600   | 15    | Yes           |
+| After compacting all files        | ~950    | 13    | Yes           |
+| **Single file**                   | **476** | **1** | **Yes**       |
 
 ## File Structure (Single File)
 
 The `repro.v` file contains:
+
 - Span struct (source locations)
 - Token types and Kind enum (65 variants)
 - Diagnostic types
@@ -127,6 +130,7 @@ The `repro.v` file contains:
 ## V Version
 
 Tested with:
+
 - V weekly.2025.49-103-g1cdb0f57
 - Latest V from GitHub releases
 
@@ -139,6 +143,7 @@ v -cc gcc -cflags "-O2" -o myapp .
 ```
 
 Or in CI:
+
 ```yaml
 - name: Build
   run: |
@@ -152,6 +157,7 @@ Or in CI:
 ## Hypothesis
 
 This appears to be a GCC -O3 optimization bug triggered by the specific memory layout of:
+
 - Large sum types (13+ variants)
 - Recursive type definitions
 - Map operations during pattern matching
