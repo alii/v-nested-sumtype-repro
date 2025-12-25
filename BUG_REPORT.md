@@ -41,7 +41,7 @@ v -cc gcc -cflags "-O2" -o repro_o2 .
 
 ## Minimization Findings
 
-The reproduction has been minimized to ~2550 lines across the source files.
+The reproduction has been minimized to ~2350 lines across the source files.
 
 ### Key Findings
 
@@ -141,7 +141,7 @@ src/
 │   ├── checker.v       # Minimal type checker (~194 lines)
 │   └── environment.v   # Simple TypeEnv with map[string]Type (~18 lines)
 ├── type_def/           # Type sum type (just TypeNone)
-├── parser/             # Creates untyped AST (~1078 lines)
+├── parser/             # Creates untyped AST (~880 lines)
 ├── scanner/            # Tokenizer for parser (~485 lines)
 ├── token/              # Token types
 ├── span/               # Source location tracking
