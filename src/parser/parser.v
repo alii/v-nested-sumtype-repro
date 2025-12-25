@@ -10,11 +10,6 @@ pub enum ParseContext {
 	top_level
 	block
 	function_params
-	array
-	struct_init
-	struct_def
-	enum_def
-	match_arms
 }
 
 pub struct ParseResult {
@@ -110,22 +105,10 @@ fn (mut p Parser) save_token_end() {
 
 fn (mut p Parser) synchronize() {
 	ctx := p.current_context()
-	mut iterations := 0
-
 	for p.current_token.kind != .eof {
-		iterations++
-		if iterations > 1000 {
-			p.add_error('Parser recovery failed: likely infinite loop detected. This is a bug in the parser.')
-
-			for p.current_token.kind != .eof {
-				p.advance()
-			}
-			return
-		}
 		match ctx {
 			.top_level {
-				if p.current_token.kind in [.kw_function, .kw_struct, .kw_enum, .kw_const, .kw_from,
-					.kw_export, .identifier] {
+				if p.current_token.kind in [.kw_function, .identifier] {
 					return
 				}
 			}
@@ -135,7 +118,7 @@ fn (mut p Parser) synchronize() {
 					p.pop_context()
 					return
 				}
-				if p.current_token.kind in [.kw_if, .kw_match, .kw_function, .identifier] {
+				if p.current_token.kind in [.kw_if, .kw_function, .identifier] {
 					return
 				}
 			}
@@ -153,55 +136,7 @@ fn (mut p Parser) synchronize() {
 					return
 				}
 			}
-			.array {
-				if p.current_token.kind == .punc_close_bracket {
-					p.advance()
-					p.pop_context()
-					return
-				}
-				if p.current_token.kind == .punc_comma {
-					p.advance()
-					return
-				}
-			}
-			.struct_init, .struct_def {
-				if p.current_token.kind == .punc_close_brace {
-					p.advance()
-					p.pop_context()
-					return
-				}
-				if p.current_token.kind == .punc_comma {
-					p.advance()
-					return
-				}
-			}
-			.enum_def {
-				if p.current_token.kind == .punc_close_brace {
-					p.advance()
-					p.pop_context()
-					return
-				}
-				if p.current_token.kind == .punc_comma {
-					p.advance()
-					return
-				}
-			}
-			.match_arms {
-				if p.current_token.kind == .punc_close_brace {
-					p.advance()
-					p.pop_context()
-					return
-				}
-				if p.current_token.kind == .punc_arrow {
-					return
-				}
-				if p.current_token.kind == .punc_comma {
-					p.advance()
-					return
-				}
-			}
 		}
-
 		p.advance()
 	}
 }
