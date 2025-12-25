@@ -62,6 +62,13 @@ pub type TStmt = TVarBinding | TFnDecl | TExport
 pub struct TBlockItem { pub: is_stmt bool stmt TStmt expr TExpr }
 pub struct TProgram { pub: body []TBlockItem span Span }
 
+// === Scanner with @[heap] ===
+pub struct ScannerState { mut: pos int column int line int }
+@[heap]
+pub struct Scanner { input string mut: state &ScannerState }
+pub fn new_scanner(input string) &Scanner { return &Scanner{input: input, state: &ScannerState{}} }
+pub fn (s Scanner) done() bool { return s.state.pos >= s.input.len }
+
 // === Type Environment with map ===
 pub type Type = TypeNone
 pub struct TypeNone {}
@@ -72,10 +79,10 @@ pub fn new_env() TypeEnv { return TypeEnv{bindings: map[string]Type{}} }
 pub fn (mut e TypeEnv) define(name string, t Type) { e.bindings[name] = t }
 
 // === Type Checker ===
-pub struct TypeChecker { mut: env TypeEnv }
+pub struct TypeChecker { mut: env TypeEnv scanner &Scanner }
 
-pub fn check(program AstProgram) TProgram {
-	mut c := TypeChecker{env: new_env()}
+pub fn check(program AstProgram, scanner &Scanner) TProgram {
+	mut c := TypeChecker{env: new_env(), scanner: scanner}
 	return c.check_program(program)
 }
 
@@ -123,6 +130,7 @@ fn (mut c TypeChecker) check_expr(expr AstExpr) TExpr {
 }
 
 fn main() {
+	scanner := new_scanner('x = 1')
 	program := AstProgram{
 		body: [
 			AstNode(AstStmt(AstVarBinding{
@@ -144,7 +152,7 @@ fn main() {
 		span: span()
 	}
 	println('AST: ${program.body.len} nodes')
-	result := check(program)
+	result := check(program, scanner)
 	println('Typed: ${result.body.len} items')
 	println('All tests passed!')
 }
