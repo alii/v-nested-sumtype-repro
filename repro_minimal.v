@@ -1,9 +1,22 @@
 module main
 
-// Minimal reproduction - testing if variant count matters
+// Testing if large enum triggers the bug
 
 pub struct Span { pub: line int col int }
 fn span() Span { return Span{} }
+
+// Large enum from original
+pub enum Kind {
+	eof error identifier literal_number literal_string literal_string_interpolation literal_char
+	logical_and logical_or bitwise_and bitwise_or bitwise_xor bitwise_not
+	kw_comptime kw_const kw_enum kw_error kw_if kw_else kw_function kw_import kw_from
+	kw_true kw_false kw_assert kw_export kw_struct kw_in kw_match kw_none kw_or
+	punc_arrow punc_comma punc_colon punc_semicolon punc_dot punc_dotdot punc_ellipsis
+	punc_open_paren punc_close_paren punc_open_brace punc_close_brace punc_open_bracket punc_close_bracket
+	punc_question_mark punc_exclamation_mark punc_at punc_equals punc_equals_comparator punc_not_equal
+	punc_gt punc_lt punc_gte punc_lte punc_plus punc_plusplus punc_minus punc_minusminus
+	punc_mul punc_div punc_mod _end_
+}
 
 // === AST (11 variants) ===
 pub struct AstNumber { pub: value string span Span }
