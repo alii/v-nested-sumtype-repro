@@ -10,7 +10,6 @@ pub struct Scanner {
 mut:
 	state              &state.ScannerState
 	diagnostics        []diagnostic.Diagnostic
-	pending_trivia     []token.Trivia
 	token_start_column int
 	token_start_line   int
 }
@@ -32,58 +31,19 @@ pub fn (s Scanner) get_diagnostics() []diagnostic.Diagnostic {
 	return s.diagnostics
 }
 
-fn (mut s Scanner) collect_trivia() {
+fn (mut s Scanner) skip_whitespace() {
 	for s.state.get_pos() < s.input.len {
 		ch := s.peek_char()
-
-		// Collect whitespace (spaces, tabs)
-		if ch == ` ` || ch == `\t` {
-			start := s.state.get_pos()
-			for s.state.get_pos() < s.input.len {
-				c := s.peek_char()
-				if c != ` ` && c != `\t` {
-					break
-				}
-				s.incr_pos()
-			}
-			text := s.input[start..s.state.get_pos()]
-			s.pending_trivia << token.Trivia{
-				kind: .whitespace
-				text: text
-			}
-			continue
-		}
-
-		// Collect newlines
-		if ch == `\n` {
+		if ch == ` ` || ch == `\t` || ch == `\n` {
 			s.incr_pos()
-			s.pending_trivia << token.Trivia{
-				kind: .newline
-				text: '\n'
-			}
 			continue
 		}
-
-		// Collect line comments
-		if ch == `/` && s.state.get_pos() + 1 < s.input.len && s.input[s.state.get_pos() + 1] == `/` {
-			start := s.state.get_pos()
-			for s.state.get_pos() < s.input.len && s.peek_char() != `\n` {
-				s.incr_pos()
-			}
-			text := s.input[start..s.state.get_pos()]
-			s.pending_trivia << token.Trivia{
-				kind: .line_comment
-				text: text
-			}
-			continue
-		}
-
 		break
 	}
 }
 
 pub fn (mut s Scanner) scan_next() token.Token {
-	s.collect_trivia()
+	s.skip_whitespace()
 
 	s.token_start_column = s.state.get_column()
 	s.token_start_line = s.state.get_line()
@@ -97,13 +57,11 @@ pub fn (mut s Scanner) scan_next() token.Token {
 
 	if token.is_valid_identifier(ch.ascii_str(), false) {
 		identifier := s.scan_identifier(ch)
-
 		if unwrapped := identifier.literal {
 			if keyword_kind := token.match_keyword(unwrapped) {
-				return s.new_token_with_trivia(keyword_kind, none, identifier.leading_trivia)
+				return s.new_token(keyword_kind, none)
 			}
 		}
-
 		return identifier
 	}
 
@@ -229,23 +187,12 @@ pub fn (mut s Scanner) scan_all() []token.Token {
 }
 
 fn (mut s Scanner) new_token(kind token.Kind, literal ?string) token.Token {
-	return s.new_token_with_trivia(kind, literal, s.take_trivia())
-}
-
-fn (mut s Scanner) new_token_with_trivia(kind token.Kind, literal ?string, trivia []token.Trivia) token.Token {
 	return token.Token{
-		kind:           kind
-		literal:        literal
-		line:           s.token_start_line
-		column:         s.token_start_column
-		leading_trivia: trivia
+		kind:    kind
+		literal: literal
+		line:    s.token_start_line
+		column:  s.token_start_column
 	}
-}
-
-fn (mut s Scanner) take_trivia() []token.Trivia {
-	trivia := s.pending_trivia.clone()
-	s.pending_trivia.clear()
-	return trivia
 }
 
 // scan_identifier scans until the next non-alphanumeric character
