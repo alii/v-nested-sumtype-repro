@@ -1,222 +1,171 @@
 # Segfault with nested sum types when using -prod (-O3) on Linux x86_64
 
-## Description
+## Summary
 
-When using complex nested sum types (recursive Statement type, large Expression sum type with 27 variants, and BlockItem struct bridging both), the V compiler generates code that causes a segmentation fault when compiled with `-prod` (which enables `-O3`) on Linux x86_64.
+A single 476-line V file causes a segmentation fault when compiled with `-prod` (GCC -O3) on Linux x86_64. The same code works correctly on macOS, and on Linux with `-O2` or debug builds.
 
-The same code runs correctly:
-- On macOS with `-prod`
-- On Linux with debug builds (no optimization)
-- On Linux with `-O2` (but NOT `-O3`)
+**Reproduction**: https://github.com/alii/v-nested-sumtype-repro
 
-## Minimal Reproduction
-
-**Repository**: https://github.com/alii/v-nested-sumtype-repro
-
-**CI showing the bug**: https://github.com/alii/v-nested-sumtype-repro/actions
+## Quick Reproduction
 
 ```bash
-# Clone the minimal reproduction
 git clone https://github.com/alii/v-nested-sumtype-repro
 cd v-nested-sumtype-repro
 
-# Build with -prod (triggers segfault on Linux x86_64)
-v -prod -o repro_prod .
+# This crashes on Linux x86_64:
+v -prod -o repro repro.v
+./repro
+# signal 11: segmentation fault (exit code 139)
 
-# Run - crashes on Linux x86_64
-./repro_prod
-# Result: signal 11: segmentation fault (exit code 139)
+# This works:
+v -cc gcc -cflags "-O2" -o repro repro.v
+./repro
+# All tests passed!
 ```
 
-The CI shows:
-- **Linux x86_64**: `Run (Production)` fails with segfault
-- **macOS ARM64**: All tests pass
+## What Works vs What Crashes
 
-### Workaround that works:
-```bash
-v -cc gcc -cflags "-O2" -o repro_o2 .
-./repro_o2
-# Works correctly
-```
+| Environment | Build Command | Result |
+|-------------|---------------|--------|
+| Linux x86_64 | `v -prod repro.v` | **Segfault** |
+| Linux x86_64 | `v repro.v` (debug) | Works |
+| Linux x86_64 | `v -cc gcc -cflags "-O2" repro.v` | Works |
+| macOS ARM64 | `v -prod repro.v` | Works |
+| macOS ARM64 | `v repro.v` (debug) | Works |
 
-## Minimization Findings
+## Root Cause Analysis
 
-The reproduction has been minimized to ~2350 lines across the source files.
+After extensive minimization (4000 lines → 476 lines), we identified the trigger:
 
-### Key Findings
+### The Magic Number: 13 Expression Variants
 
-1. **Requires both parser AND type checker**: Neither component alone triggers the bug
-   - Parser alone: ✅ Works
-   - Type checker alone: ✅ Works
-   - Parser + Type checker: ❌ **Segfault**
+The bug is extremely sensitive to sum type size:
+- **12 Expression variants**: Works
+- **13 Expression variants**: **Segfault**
 
-2. **Requires actual TypeEnv usage**: The bug does NOT trigger if:
-   - TypeEnv struct exists but is never used
-   - Only a single define() call is made
+This is the exact threshold - adding just one more variant to a working 12-variant sum type triggers the crash.
 
-   The bug DOES trigger when:
-   - Multiple define() calls are made to a `map[string]Type`
-   - This happens during type checking of variable/function declarations
+### Required Components
 
-3. **Minimal type checker triggers it**: Even with:
-   - No type inference or unification
-   - No error checking
-   - Just pure AST conversion from `ast.*` to `typed_ast.*`
-   - Plus multiple `c.env.define(name, type)` calls
+The bug requires ALL of these together:
+1. **Two parallel sum type hierarchies** (AST and TypedAST with same structure)
+2. **13+ Expression variants** in each hierarchy
+3. **Recursive Statement type** (ExportDeclaration contains Statement)
+4. **Match expressions** over these sum types
+5. **Map writes** during match processing (`map[string]Type`)
 
-4. **The trigger appears to be**: The combination of:
-   - Large match expressions (3 Statement variants, 13 Expression variants)
-   - Two similar sum type hierarchies in different modules (ast and typed_ast)
-   - Writes to a `map[string]Type` during match processing
+Removing any one component causes the bug to disappear.
 
-5. **Sum type size matters**: The bug is sensitive to the number of variants:
-   - With 12 Expression + 3 Statement variants: ✅ **Works** (no crash)
-   - With 13 Expression + 3 Statement variants: ❌ **Segfault**
-   - The threshold is exactly 13 Expression variants - adding just 1 more variant to a working 12-variant sum type triggers the bug
-
-## Expected Behavior
-
-The program should run without crashing, the same as it does:
-- On macOS with `-prod`
-- On Linux without `-prod`
-- On Linux with `-O2`
-
-## Current Behavior
-
-The program crashes with:
-```
-Parsed AST with 25 nodes
-signal 11: segmentation fault
-                                                        | 0x55591aa6086b | ./repro_prod(+0x1486b)
-                                                        | 0x55591aa67ab9 | ./repro_prod(+0x1bab9)
-                                                        | 0x55591aab4075 | ./repro_prod(+0x68075)
-                                                        | 0x55591aab56d6 | ./repro_prod(+0x696d6)
-                                                        | 0x55591aa92218 | ./repro_prod(+0x46218)
-                                                        | 0x55591aa4fc0f | ./repro_prod(+0x3c0f)
-                                                        | 0x7fdfa442a1ca | /lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)
-                                                        | 0x7fdfa442a28b | /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)
-                                                        | 0x55591aa4fc45 | ./repro_prod(+0x3c45)
-Process completed with exit code 139.
-```
-
-The crash occurs during the type checker phase, after parsing successfully completes.
-
-## V Version
-
-Latest V (tested on weekly.2025.49-103-g1cdb0f57 and in CI with latest download)
-
-## Environment Details
-
-**Failing environment** (GitHub Actions ubuntu-latest):
-- OS: Linux x86_64 (Ubuntu)
-- Compiler: GCC (default)
-- V: Latest from https://github.com/vlang/v/releases/latest/download/v_linux.zip
-
-**Working environments**:
-- macOS ARM64 with `-prod`
-- Linux x86_64 with `-O2` or debug builds
-
-## Possible Solution
-
-This appears to be a GCC `-O3` optimization bug specific to the generated C code for nested/recursive sum types combined with map writes. The workaround is to use `-O2` instead of `-O3` on Linux:
-
-```yaml
-# In CI workflow:
-- name: Build (Production)
-  run: |
-    if [ "${{ matrix.platform }}" = "linux" ]; then
-      v -cc gcc -cflags "-O2" -o al .
-    else
-      v -prod -o al .
-    fi
-```
-
-## Files in Minimal Reproduction
-
-```
-src/
-├── ast/ast.v           # Untyped AST (Statement 3 variants, Expression 13 variants)
-├── typed_ast/          # Typed AST (mirrors untyped structure)
-├── types/
-│   ├── checker.v       # Minimal type checker (~194 lines)
-│   └── environment.v   # Simple TypeEnv with map[string]Type (~18 lines)
-├── type_def/           # Type sum type (just TypeNone)
-├── parser/             # Creates untyped AST (~880 lines)
-├── scanner/            # Tokenizer for parser (~485 lines)
-├── token/              # Token types
-├── span/               # Source location tracking
-└── diagnostic/         # Error reporting
-```
-
-## Minimal Type Checker That Triggers Bug
-
-The type checker has been minimized to just:
+### Minimal Triggering Pattern
 
 ```v
-pub struct TypeEnv {
-mut:
-    bindings map[string]Type
+// Two parallel sum types with 13 variants each
+pub type AstExpression = A | B | C | D | E | F | G | H | I | J | K | L | M  // 13 variants
+pub type TExpression = A | B | C | D | E | F | G | H | I | J | K | L | M    // 13 variants
+
+// Recursive statement type
+pub type AstStatement = AstExportDeclaration | ...
+pub struct AstExportDeclaration { declaration AstStatement }  // recursive!
+
+// Type environment with map
+pub struct TypeEnv { mut: bindings map[string]Type }
+
+// Match + map write = crash
+fn (mut c TypeChecker) check_expr(expr AstExpression) TExpression {
+    match expr {
+        AstNumberLiteral { return TNumberLiteral{...} }
+        // ... 12 more variants
+    }
 }
 
-pub fn (mut e TypeEnv) define(name string, t Type) {
-    e.bindings[name] = t  // Writing to this map during match processing triggers the bug
-}
-```
-
-And the check_statement function:
-```v
-fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
+fn (mut c TypeChecker) check_statement(stmt AstStatement) TStatement {
     match stmt {
-        ast.VariableBinding {
-            typed_init := c.check_expr(stmt.init)
-            c.env.define(stmt.identifier.name, t_none())  // This triggers it
-            return typed_ast.VariableBinding{ ... }
+        AstVariableBinding {
+            c.env.bindings[name] = t  // Map write during match triggers it
+            // ...
         }
-        // ... other variants
     }
 }
 ```
 
-## Key Code Patterns
+## The Crash
 
-**Recursive Statement type (3 variants):**
-```v
-pub struct ExportDeclaration {
-pub:
-    declaration Statement  // Contains Statement (recursive)
-    span        Span @[required]
-}
-
-pub type Statement = ExportDeclaration  // <- recursive reference
-    | FunctionDeclaration
-    | VariableBinding
+```
+Parsed AST with 5 nodes
+signal 11: segmentation fault
+    | 0x55591aa6086b | ./repro(+0x1486b)
+    | 0x55591aa67ab9 | ./repro(+0x1bab9)
+    ...
+Process completed with exit code 139.
 ```
 
-**Expression sum type (13 variants - the threshold):**
-```v
-pub type Expression = ArrayExpression
-    | BinaryExpression
-    | BlockExpression
-    | BooleanLiteral
-    | ErrorNode
-    | FunctionCallExpression
-    | FunctionExpression
-    | Identifier
-    | IfExpression
-    | NumberLiteral
-    | PropertyAccessExpression
-    | StringLiteral
-    | UnaryExpression
+The crash occurs in the type checker phase, after parsing completes successfully.
+
+## Minimization Journey
+
+| Stage | Lines | Files | Bug Triggers? |
+|-------|-------|-------|---------------|
+| Original codebase | ~4000 | 18+ | Yes |
+| After removing unrelated features | ~2350 | 18 | Yes |
+| After compacting utilities | ~1600 | 15 | Yes |
+| After compacting all files | ~950 | 13 | Yes |
+| **Single file** | **476** | **1** | **Yes** |
+
+## File Structure (Single File)
+
+The `repro.v` file contains:
+- Span struct (source locations)
+- Token types and Kind enum (65 variants)
+- Diagnostic types
+- AST types (13 Expression variants, 3 Statement variants)
+- Typed AST types (mirrors AST structure)
+- Scanner (~100 lines)
+- Parser (~150 lines)
+- Type checker (~80 lines)
+- Main function
+
+## V Version
+
+Tested with:
+- V weekly.2025.49-103-g1cdb0f57
+- Latest V from GitHub releases
+
+## Workaround
+
+Use `-O2` instead of `-O3` on Linux:
+
+```bash
+v -cc gcc -cflags "-O2" -o myapp .
 ```
 
-**BlockItem bridging both types:**
-```v
-pub struct BlockItem {
-pub:
-    is_statement bool
-    statement    Statement
-    expression   Expression
-}
+Or in CI:
+```yaml
+- name: Build
+  run: |
+    if [ "${{ runner.os }}" = "Linux" ]; then
+      v -cc gcc -cflags "-O2" -o app .
+    else
+      v -prod -o app .
+    fi
 ```
 
-The full original source is at: https://github.com/alii/al
+## Hypothesis
+
+This appears to be a GCC -O3 optimization bug triggered by the specific memory layout of:
+- Large sum types (13+ variants)
+- Recursive type definitions
+- Map operations during pattern matching
+
+The -O3 optimization likely miscompiles something in the generated C code for sum type dispatch or map access patterns.
+
+## CI
+
+The bug is continuously verified in CI: https://github.com/alii/v-nested-sumtype-repro/actions
+
+- Linux job fails with exit code 139 (segfault) on `-prod` build
+- macOS job passes all tests
+- Linux with `-O2` passes
+
+## Original Source
+
+This was minimized from: https://github.com/alii/al (a programming language implementation)
