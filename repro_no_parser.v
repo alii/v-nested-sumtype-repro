@@ -18,6 +18,24 @@ pub enum Kind {
 	punc_mul punc_div punc_mod _end_
 }
 
+pub fn (kind Kind) str() string {
+	return match kind {
+		.eof { 'EOF' } .error { '<error>' } .identifier { 'identifier' } .literal_number { 'number' }
+		.literal_string { 'string' } .literal_string_interpolation { 'interpolated string' } .literal_char { 'char' }
+		.logical_and { '&&' } .logical_or { '||' } .bitwise_and { '&' } .bitwise_or { '|' } .bitwise_xor { '^' } .bitwise_not { '~' }
+		.kw_comptime { 'comptime' } .kw_const { 'const' } .kw_enum { 'enum' } .kw_error { 'error' } .kw_if { 'if' } .kw_else { 'else' }
+		.kw_function { 'fn' } .kw_import { 'import' } .kw_from { 'from' } .kw_true { 'true' } .kw_false { 'false' }
+		.kw_assert { 'assert' } .kw_export { 'export' } .kw_struct { 'struct' } .kw_in { 'in' } .kw_match { 'match' }
+		.kw_none { 'none' } .kw_or { 'or' } .punc_arrow { '->' } .punc_comma { ',' } .punc_colon { ':' } .punc_semicolon { ';' }
+		.punc_dot { '.' } .punc_dotdot { '..' } .punc_ellipsis { '...' } .punc_open_paren { '(' } .punc_close_paren { ')' }
+		.punc_open_brace { '{' } .punc_close_brace { '}' } .punc_open_bracket { '[' } .punc_close_bracket { ']' }
+		.punc_question_mark { '?' } .punc_exclamation_mark { '!' } .punc_at { '@' } .punc_equals { '=' }
+		.punc_equals_comparator { '==' } .punc_not_equal { '!=' } .punc_gt { '>' } .punc_lt { '<' } .punc_gte { '>=' } .punc_lte { '<=' }
+		.punc_plus { '+' } .punc_plusplus { '++' } .punc_minus { '-' } .punc_minusminus { '--' }
+		.punc_mul { '*' } .punc_div { '/' } .punc_mod { '%' } ._end_ { '<end>' }
+	}
+}
+
 // === DIAGNOSTIC ===
 pub enum Severity { error }
 pub struct Diagnostic { pub: span Span severity Severity message string }
@@ -206,6 +224,172 @@ fn (mut p Parser) eat_token_literal(kind Kind, message string) !string {
 
 fn (mut p Parser) peek_next() ?Token { if p.index + 1 < p.tokens.len { return p.tokens[p.index + 1] }; return none }
 
+fn (mut p Parser) synchronize() {
+	ctx := p.current_context()
+	for p.current_token.kind != .eof {
+		match ctx {
+			.top_level { if p.current_token.kind in [.kw_function, .identifier] { return } }
+			.block { if p.current_token.kind == .punc_close_brace { p.advance(); p.pop_context(); return }; if p.current_token.kind in [.kw_if, .kw_function, .identifier] { return } }
+			.function_params { if p.current_token.kind == .punc_close_paren { p.advance(); p.pop_context(); return }; if p.current_token.kind == .punc_open_brace { return }; if p.current_token.kind == .punc_comma { p.advance(); return } }
+		}
+		p.advance()
+	}
+}
+
+pub fn (mut p Parser) parse_program() ParseResult {
+	program_span := p.current_span()
+	mut body := []AstNode{}
+	for p.current_token.kind != .eof {
+		s := p.current_span()
+		node := p.parse_node() or { p.add_error(err.msg()); p.synchronize(); err_expr := AstExpression(AstErrorNode{message: err.msg(), span: s}); body << AstNode(err_expr); continue }
+		body << node
+	}
+	return ParseResult{ast: AstBlockExpression{body: body, span: p.span_from(program_span)}, diagnostics: p.diagnostics}
+}
+
+fn (mut p Parser) parse_node() !AstNode {
+	match p.current_token.kind {
+		.kw_function { return p.parse_function()! }
+		.identifier { if next := p.peek_next() { if next.kind == .punc_equals { return AstNode(p.parse_binding()!) }; if p.is_type_start_at_next() { return AstNode(p.parse_binding()!) } } }
+		else {}
+	}
+	return AstNode(p.parse_expression()!)
+}
+
+fn (mut p Parser) parse_expression() !AstExpression { return p.parse_additive()! }
+
+fn (mut p Parser) parse_additive() !AstExpression {
+	mut left := p.parse_primary_expression()!
+	for p.current_token.kind == .punc_plus { s := p.current_span(); p.eat(.punc_plus)!; right := p.parse_primary_expression()!; left = AstBinaryExpression{left: left, right: right, op: AstOperator{kind: .punc_plus}, span: s} }
+	return left
+}
+
+fn (mut p Parser) parse_primary_expression() !AstExpression {
+	expr := match p.current_token.kind {
+		.literal_string { p.parse_string_expression()! }
+		.literal_number { p.parse_number_expression()! }
+		.identifier { p.parse_identifier_or_call()! }
+		.punc_open_paren { p.eat(.punc_open_paren)!; inner := p.parse_expression()!; p.eat(.punc_close_paren)!; inner }
+		.kw_true { s := p.current_span(); p.eat(.kw_true)!; AstBooleanLiteral{value: true, span: s} }
+		.kw_false { s := p.current_span(); p.eat(.kw_false)!; AstBooleanLiteral{value: false, span: s} }
+		.punc_open_brace { p.parse_block_expression()! }
+		.punc_open_bracket { p.parse_array_expression()! }
+		.kw_if { p.parse_if_expression()! }
+		.kw_function { p.parse_function_expression()! }
+		else { return error("Unexpected '${p.current_token}'") }
+	}
+	return expr
+}
+
+fn (mut p Parser) parse_identifier_or_call() !AstExpression {
+	s := p.current_span()
+	name := p.eat_token_literal(.identifier, 'Expected identifier')!
+	if p.current_token.kind == .punc_open_paren { return p.parse_function_call_expression(name, s)! }
+	return AstIdentifier{name: name, span: s}
+}
+
+fn (mut p Parser) parse_block_expression() !AstExpression {
+	block_span := p.current_span()
+	p.eat(.punc_open_brace)!
+	p.push_context(.block)
+	mut body := []AstNode{}
+	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
+		s := p.current_span()
+		node := p.parse_node() or { p.add_error(err.msg()); p.synchronize(); err_expr := AstExpression(AstErrorNode{message: err.msg(), span: s}); body << AstNode(err_expr); continue }
+		body << node
+	}
+	p.pop_context()
+	p.eat(.punc_close_brace)!
+	return AstBlockExpression{body: body, span: p.span_from(block_span)}
+}
+
+fn (mut p Parser) parse_array_expression() !AstExpression { s := p.current_span(); p.eat(.punc_open_bracket)!; p.eat(.punc_close_bracket)!; return AstArrayExpression{span: s} }
+
+fn (mut p Parser) parse_if_expression() !AstExpression {
+	s := p.current_span()
+	p.eat(.kw_if)!
+	condition := p.parse_expression()!
+	body := p.parse_expression()!
+	mut else_body := ?AstExpression(none)
+	if p.current_token.kind == .kw_else { p.eat(.kw_else)!; else_body = p.parse_expression()! }
+	return AstIfExpression{condition: condition, body: body, span: s, else_body: else_body}
+}
+
+fn (mut p Parser) parse_function() !AstNode {
+	if next := p.peek_next() { if next.kind == .identifier { return AstNode(p.parse_function_declaration()!) } }
+	return AstNode(p.parse_function_expression()!)
+}
+
+fn (mut p Parser) parse_function_declaration() !AstStatement {
+	fn_span := p.current_span()
+	p.eat(.kw_function)!
+	id_span := p.current_span()
+	name := p.eat_token_literal(.identifier, 'Expected function name')!
+	params := p.parse_parameters()!
+	return_type := p.parse_function_return_type()
+	body := p.parse_block_expression()!
+	return AstFunctionDeclaration{identifier: AstIdentifier{name: name, span: id_span}, params: params, return_type: return_type, body: body, span: fn_span}
+}
+
+fn (mut p Parser) parse_function_expression() !AstExpression {
+	fn_span := p.current_span()
+	p.eat(.kw_function)!
+	params := p.parse_parameters()!
+	return_type := p.parse_function_return_type()
+	body := p.parse_block_expression()!
+	return AstFunctionExpression{params: params, return_type: return_type, body: body, span: fn_span}
+}
+
+fn (mut p Parser) parse_function_return_type() ?AstTypeIdentifier { if p.current_token.kind == .identifier { return p.parse_type_identifier() or { return none } }; return none }
+
+fn (mut p Parser) parse_parameters() ![]AstFunctionParameter {
+	p.eat(.punc_open_paren)!
+	p.push_context(.function_params)
+	mut params := []AstFunctionParameter{}
+	for p.current_token.kind != .punc_close_paren && p.current_token.kind != .eof { param := p.parse_parameter()!; params << param; if p.current_token.kind == .punc_comma { p.eat(.punc_comma)! } }
+	p.pop_context()
+	p.eat(.punc_close_paren)!
+	return params
+}
+
+fn (mut p Parser) parse_parameter() !AstFunctionParameter {
+	s := p.current_span()
+	name := p.eat_token_literal(.identifier, 'Expected parameter name')!
+	mut typ := ?AstTypeIdentifier(none)
+	if p.is_type_start() { typ = p.parse_type_identifier()! }
+	return AstFunctionParameter{typ: typ, identifier: AstIdentifier{name: name, span: s}}
+}
+
+fn (mut p Parser) is_type_start() bool { if p.current_token.kind == .identifier { if name := p.current_token.literal { return name.len > 0 && name[0] >= `A` && name[0] <= `Z` } }; return false }
+fn (mut p Parser) is_type_start_at_next() bool { next := p.peek_next() or { return false }; if next.kind == .identifier { if name := next.literal { return name.len > 0 && name[0] >= `A` && name[0] <= `Z` } }; return false }
+
+fn (mut p Parser) parse_type_identifier() !AstTypeIdentifier {
+	s := p.current_span()
+	name := p.eat_token_literal(.identifier, 'Expected type name')!
+	return AstTypeIdentifier{identifier: AstIdentifier{name: name, span: s}, span: s}
+}
+
+fn (mut p Parser) parse_binding() !AstStatement {
+	s := p.current_span()
+	name := p.eat_token_literal(.identifier, 'Expected identifier')!
+	mut typ := ?AstTypeIdentifier(none)
+	if p.is_type_start() { typ = p.parse_type_identifier()! }
+	p.eat(.punc_equals)!
+	init := p.parse_expression()!
+	return AstVariableBinding{identifier: AstIdentifier{name: name, span: s}, typ: typ, init: init, span: p.span_from(s)}
+}
+
+fn (mut p Parser) parse_function_call_expression(name string, name_span Span) !AstExpression {
+	p.eat(.punc_open_paren)!
+	mut arguments := []AstExpression{}
+	for p.current_token.kind != .punc_close_paren { arguments << p.parse_expression()!; if p.current_token.kind == .punc_comma { p.eat(.punc_comma)! } }
+	p.eat(.punc_close_paren)!
+	return AstFunctionCallExpression{identifier: AstIdentifier{name: name, span: name_span}, arguments: arguments, span: p.span_from(name_span)}
+}
+
+fn (mut p Parser) parse_string_expression() !AstExpression { s := p.current_span(); return AstStringLiteral{value: p.eat_token_literal(.literal_string, 'Expected string')!, span: s} }
+fn (mut p Parser) parse_number_expression() !AstExpression { s := p.current_span(); return AstNumberLiteral{value: p.eat_token_literal(.literal_number, 'Expected number')!, span: s} }
+
 // === TYPE ENVIRONMENT ===
 pub struct TypeEnv { mut: bindings map[string]Type }
 pub fn new_env() TypeEnv { return TypeEnv{bindings: map[string]Type{}} }
@@ -277,54 +461,18 @@ fn convert_id(id AstIdentifier) TIdentifier { return TIdentifier{name: id.name, 
 
 // === MAIN ===
 fn main() {
-	// Use scanner
-	source := 'x = 1\ny = 2\n'
+	source := '
+x = 1
+y = 2
+z = x + y
+fn add(a Int, b Int) Int { a + b }
+result = add(1, 2)
+'
 	mut s := new_scanner(source)
-	tokens := s.scan_all()
-	println('Scanned ${tokens.len} tokens')
-
-	// Manually construct AST (no parser)
-	program := AstBlockExpression{
-		body: [
-			AstNode(AstStatement(AstVariableBinding{
-				identifier: AstIdentifier{name: 'x', span: span()}
-				init: AstNumberLiteral{value: '1', span: span()}
-				span: span()
-			})),
-			AstNode(AstStatement(AstVariableBinding{
-				identifier: AstIdentifier{name: 'y', span: span()}
-				init: AstNumberLiteral{value: '2', span: span()}
-				span: span()
-			})),
-			AstNode(AstStatement(AstVariableBinding{
-				identifier: AstIdentifier{name: 'z', span: span()}
-				init: AstBinaryExpression{
-					left: AstIdentifier{name: 'x', span: span()}
-					right: AstIdentifier{name: 'y', span: span()}
-					op: AstOperator{kind: .punc_plus}
-					span: span()
-				}
-				span: span()
-			})),
-			AstNode(AstStatement(AstFunctionDeclaration{
-				identifier: AstIdentifier{name: 'add', span: span()}
-				body: AstIdentifier{name: 'a', span: span()}
-				span: span()
-			})),
-			AstNode(AstStatement(AstVariableBinding{
-				identifier: AstIdentifier{name: 'result', span: span()}
-				init: AstFunctionCallExpression{
-					identifier: AstIdentifier{name: 'add', span: span()}
-					arguments: [AstExpression(AstNumberLiteral{value: '1', span: span()}), AstExpression(AstNumberLiteral{value: '2', span: span()})]
-					span: span()
-				}
-				span: span()
-			})),
-		]
-		span: span()
-	}
-	println('AST with ${program.body.len} nodes')
-	check_result := check(program)
+	mut p := new_parser(mut s)
+	result := p.parse_program()
+	println('Parsed AST with ${result.ast.body.len} nodes')
+	check_result := check(result.ast)
 	if !check_result.success { println('Type check failed'); return }
 	println('Type checked: ${check_result.typed_ast.body.len} items')
 	println('All tests passed!')
