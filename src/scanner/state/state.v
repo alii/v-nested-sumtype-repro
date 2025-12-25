@@ -15,21 +15,6 @@ pub fn (mut s ScannerState) get_pos() int {
 }
 
 @[inline]
-pub fn (mut s ScannerState) set_pos(pos int) {
-	s.pos = pos
-}
-
-@[inline]
-pub fn (mut s ScannerState) set_line(line int) {
-	s.line = line
-}
-
-@[inline]
-pub fn (mut s ScannerState) set_column(column int) {
-	s.column = column
-}
-
-@[inline]
 pub fn (mut s ScannerState) incr_pos() {
 	s.pos++
 }

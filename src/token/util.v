@@ -9,11 +9,6 @@ pub fn is_uppercase_ascii(c u8) bool {
 	return c >= `A` && c <= `Z`
 }
 
-@[inline]
-pub fn is_type_identifier(identifier string) bool {
-	return is_uppercase_ascii(identifier[0])
-}
-
 // is_valid_identifier checks if the given identifier is a valid identifier. It
 // accepts a parameter "is_fully_qualified" which indicates if the identifier is
 // fully qualified. If it is fully qualified, it will not allow keywords to be

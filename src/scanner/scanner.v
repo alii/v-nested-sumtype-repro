@@ -479,7 +479,3 @@ fn (mut s Scanner) decr_pos() {
 
 	s.state.decr_pos()
 }
-
-pub fn (s Scanner) get_state() &state.ScannerState {
-	return s.state
-}
