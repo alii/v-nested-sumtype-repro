@@ -5,7 +5,7 @@ module main
 pub struct Span { pub: line int col int }
 fn span() Span { return Span{} }
 
-// === AST (8 variants) ===
+// === AST (11 variants) ===
 pub struct AstNumber { pub: value string span Span }
 pub struct AstString { pub: value string span Span }
 pub struct AstIdent { pub: name string span Span }
@@ -14,7 +14,10 @@ pub struct AstBool { pub: value bool span Span }
 pub struct AstArray { pub: elems []AstExpr span Span }
 pub struct AstBinary { pub: left AstExpr right AstExpr span Span }
 pub struct AstBlock { pub: items []AstExpr span Span }
-pub type AstExpr = AstNumber | AstString | AstIdent | AstError | AstBool | AstArray | AstBinary | AstBlock
+pub struct AstIf { pub: cond AstExpr body AstExpr span Span }
+pub struct AstFn { pub: body AstExpr span Span }
+pub struct AstCall { pub: callee AstExpr span Span }
+pub type AstExpr = AstNumber | AstString | AstIdent | AstError | AstBool | AstArray | AstBinary | AstBlock | AstIf | AstFn | AstCall
 
 pub struct AstVarBinding { pub: name AstIdent init AstExpr span Span }
 pub struct AstFnDecl { pub: name AstIdent body AstExpr span Span }
@@ -24,7 +27,7 @@ pub type AstStmt = AstVarBinding | AstFnDecl | AstExport
 pub struct AstProgram { pub: body []AstNode span Span }
 pub type AstNode = AstStmt | AstExpr
 
-// === TYPED AST (8 variants) ===
+// === TYPED AST (11 variants) ===
 pub struct TNumber { pub: value string span Span }
 pub struct TString { pub: value string span Span }
 pub struct TIdent { pub: name string span Span }
@@ -33,7 +36,10 @@ pub struct TBool { pub: value bool span Span }
 pub struct TArray { pub: elems []TExpr span Span }
 pub struct TBinary { pub: left TExpr right TExpr span Span }
 pub struct TBlock { pub: items []TExpr span Span }
-pub type TExpr = TNumber | TString | TIdent | TError | TBool | TArray | TBinary | TBlock
+pub struct TIf { pub: cond TExpr body TExpr span Span }
+pub struct TFn { pub: body TExpr span Span }
+pub struct TCall { pub: callee TExpr span Span }
+pub type TExpr = TNumber | TString | TIdent | TError | TBool | TArray | TBinary | TBlock | TIf | TFn | TCall
 
 pub struct TVarBinding { pub: name TIdent init TExpr span Span }
 pub struct TFnDecl { pub: name TIdent body TExpr span Span }
@@ -97,6 +103,9 @@ fn (mut c TypeChecker) check_expr(expr AstExpr) TExpr {
 		AstArray { return TArray{span: expr.span} }
 		AstBinary { return TBinary{left: c.check_expr(expr.left), right: c.check_expr(expr.right), span: expr.span} }
 		AstBlock { return TBlock{span: expr.span} }
+		AstIf { return TIf{cond: c.check_expr(expr.cond), body: c.check_expr(expr.body), span: expr.span} }
+		AstFn { return TFn{body: c.check_expr(expr.body), span: expr.span} }
+		AstCall { return TCall{callee: c.check_expr(expr.callee), span: expr.span} }
 	}
 }
 
