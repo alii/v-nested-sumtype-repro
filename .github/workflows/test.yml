@@ -48,3 +48,11 @@ jobs:
       - name: Run (O2 only)
         if: matrix.name == 'linux'
         run: ./repro_o2
+
+      - name: Build 12-variant (Production) - should work
+        if: matrix.name == 'linux'
+        run: v -prod -o repro_12_prod repro_12.v
+
+      - name: Run 12-variant (Production) - should work
+        if: matrix.name == 'linux'
+        run: ./repro_12_prod
