@@ -65,11 +65,6 @@ fn (mut p Parser) add_error(message string) {
 		message)
 }
 
-fn (mut p Parser) add_warning(message string) {
-	p.diagnostics << diagnostic.warning_at(p.current_token.line, p.current_token.column,
-		message)
-}
-
 fn (p Parser) current_span() sp.Span {
 	token_len := if lit := p.current_token.literal {
 		lit.len

@@ -4,7 +4,6 @@ import span { Span, point_span }
 
 pub enum Severity {
 	error
-	warning
 }
 
 pub struct Diagnostic {
@@ -18,14 +17,6 @@ pub fn error_at(line int, column int, message string) Diagnostic {
 	return Diagnostic{
 		span:     point_span(line, column)
 		severity: .error
-		message:  message
-	}
-}
-
-pub fn warning_at(line int, column int, message string) Diagnostic {
-	return Diagnostic{
-		span:     point_span(line, column)
-		severity: .warning
 		message:  message
 	}
 }
