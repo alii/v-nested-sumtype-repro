@@ -75,6 +75,94 @@ pub struct TBlockItem { pub: is_statement bool statement TStatement expression T
 pub struct TBlockExpression { pub: body []TBlockItem span Span @[required] }
 pub type TExpression = TArrayExpression | TBinaryExpression | TBlockExpression | TBooleanLiteral | TErrorNode | TFunctionCallExpression | TFunctionExpression | TIdentifier | TIfExpression | TNumberLiteral | TPropertyAccessExpression | TStringLiteral | TUnaryExpression
 
+// === TOKEN ===
+pub struct Token { pub: kind Kind literal ?string line int column int }
+pub fn (t &Token) str() string { if literal := t.literal { if t.kind == .literal_string { return '\'${literal}\'' } }; return t.literal or { t.kind.str() } }
+
+pub const keyword_map = { 'fn': Kind.kw_function }
+fn is_name_char(c u8) bool { return (c >= `a` && c <= `z`) || (c >= `A` && c <= `Z`) || c == `_` || c.is_digit() }
+pub fn is_valid_identifier(identifier string, _ bool) bool {
+	if identifier.len == 0 { return false }
+	if !identifier[0].is_letter() && identifier[0] != `_` { return false }
+	for i := 1; i < identifier.len; i++ { if !is_name_char(identifier[i]) { return false } }
+	return true
+}
+pub fn match_keyword(identifier ?string) ?Kind { if unwrapped := identifier { return keyword_map[unwrapped] or { return none } }; return none }
+pub fn is_quote(c char) bool { return c == `'` }
+
+// === SCANNER STATE ===
+pub struct ScannerState { mut: pos int column int line int }
+pub fn (mut s ScannerState) get_pos() int { return s.pos }
+pub fn (mut s ScannerState) incr_pos() { s.pos++ }
+pub fn (s ScannerState) get_line() int { return s.line }
+pub fn (s ScannerState) get_column() int { return s.column }
+pub fn (mut s ScannerState) incr_line() { s.line++; s.column = 0 }
+pub fn (mut s ScannerState) incr_column() { s.column++ }
+
+// === SCANNER ===
+@[heap]
+pub struct Scanner { input string mut: state &ScannerState diagnostics []Diagnostic token_start_column int token_start_line int }
+
+pub fn new_scanner(input string) &Scanner { return &Scanner{input: input, state: &ScannerState{}, diagnostics: []Diagnostic{}} }
+fn (mut s Scanner) add_error(message string) { s.diagnostics << error_at(s.state.get_line(), s.state.get_column(), message) }
+pub fn (sc Scanner) get_diagnostics() []Diagnostic { return sc.diagnostics }
+fn (mut s Scanner) skip_whitespace() { for s.state.get_pos() < s.input.len { ch := s.peek_char(); if ch == ` ` || ch == `\t` || ch == `\n` { s.incr_pos() } else { break } } }
+
+pub fn (mut s Scanner) scan_next() Token {
+	s.skip_whitespace()
+	s.token_start_column = s.state.get_column()
+	s.token_start_line = s.state.get_line()
+	if s.state.get_pos() == s.input.len { return s.new_token(.eof, none) }
+	ch := s.peek_char()
+	s.incr_pos()
+	if is_valid_identifier(ch.ascii_str(), false) {
+		identifier := s.scan_identifier(ch)
+		if unwrapped := identifier.literal { if keyword_kind := match_keyword(unwrapped) { return s.new_token(keyword_kind, none) } }
+		return identifier
+	}
+	if ch == `-` && s.peek_char() == `>` { s.incr_pos(); return s.new_token(.punc_arrow, none) }
+	if ch == `.` && s.peek_char() == `.` { s.incr_pos(); return s.new_token(.punc_dotdot, none) }
+	if ch.is_alnum() { if ch.is_digit() { return s.scan_number(ch) }; return s.scan_identifier(ch) }
+	if is_quote(ch) {
+		mut result := ''
+		for { next := s.peek_char(); if next == 0 || next == `\n` || next == ch { if next == ch { s.incr_pos() }; break }; s.incr_pos(); result += next.ascii_str() }
+		return s.new_token(.literal_string, result)
+	}
+	return match ch {
+		`,` { s.new_token(.punc_comma, none) }
+		`(` { s.new_token(.punc_open_paren, none) }
+		`)` { s.new_token(.punc_close_paren, none) }
+		`{` { s.new_token(.punc_open_brace, none) }
+		`}` { s.new_token(.punc_close_brace, none) }
+		`[` { s.new_token(.punc_open_bracket, none) }
+		`]` { s.new_token(.punc_close_bracket, none) }
+		`;` { s.new_token(.punc_semicolon, none) }
+		`.` { s.new_token(.punc_dot, none) }
+		`+` { s.new_token(.punc_plus, none) }
+		`-` { s.new_token(.punc_minus, none) }
+		`*` { s.new_token(.punc_mul, none) }
+		`%` { s.new_token(.punc_mod, none) }
+		`!` { s.new_token(.punc_exclamation_mark, none) }
+		`?` { s.new_token(.punc_question_mark, none) }
+		`:` { s.new_token(.punc_colon, none) }
+		`>` { s.new_token(.punc_gt, none) }
+		`<` { s.new_token(.punc_lt, none) }
+		`/` { s.new_token(.punc_div, none) }
+		`|` { s.new_token(.bitwise_or, none) }
+		`=` { s.new_token(.punc_equals, none) }
+		else { s.add_error("Unexpected character '${ch.ascii_str()}'"); return s.new_token(.error, ch.ascii_str()) }
+	}
+}
+
+pub fn (mut s Scanner) scan_all() []Token { mut r := []Token{}; for { t := s.scan_next(); r << t; if t.kind == .eof { break } }; return r }
+fn (mut s Scanner) new_token(kind Kind, literal ?string) Token { return Token{kind: kind, literal: literal, line: s.token_start_line, column: s.token_start_column} }
+fn (mut s Scanner) scan_identifier(from u8) Token { mut result := from.ascii_str(); for { next := result + s.peek_char().ascii_str(); if is_valid_identifier(next, false) { s.incr_pos(); result = next } else { break } }; return s.new_token(.identifier, result) }
+fn (mut s Scanner) scan_number(from u8) Token { mut result := from.ascii_str(); for { next := s.peek_char(); if next.is_digit() { s.incr_pos(); result += next.ascii_str() } else { break } }; return s.new_token(.literal_number, result) }
+fn (mut s Scanner) peek_char() u8 { if s.state.get_pos() >= s.input.len { return 0 }; return s.input[s.state.get_pos()] }
+pub fn (mut s Scanner) incr_pos() { if s.input[s.state.get_pos()] == `\n` { s.state.incr_line() } else { s.state.incr_column() }; s.state.incr_pos() }
+
+fn error_at(line int, column int, message string) Diagnostic { return Diagnostic{span: point_span(line, column), severity: .error, message: message} }
+
 // === TYPE ENVIRONMENT ===
 pub struct TypeEnv { mut: bindings map[string]Type }
 pub fn new_env() TypeEnv { return TypeEnv{bindings: map[string]Type{}} }
@@ -146,6 +234,12 @@ fn convert_id(id AstIdentifier) TIdentifier { return TIdentifier{name: id.name, 
 
 // === MAIN ===
 fn main() {
+	// Use scanner
+	source := 'x = 1\ny = 2\n'
+	mut s := new_scanner(source)
+	tokens := s.scan_all()
+	println('Scanned ${tokens.len} tokens')
+
 	// Manually construct AST (no parser)
 	program := AstBlockExpression{
 		body: [
