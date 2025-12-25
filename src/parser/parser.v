@@ -1122,7 +1122,7 @@ fn (mut p Parser) parse_struct_declaration() !ast.Statement {
 
 	// Parse and discard fields since StructDeclaration is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		_ = p.parse_struct_field()!
+		p.parse_struct_field()!
 	}
 
 	p.pop_context()
@@ -1142,30 +1142,17 @@ fn (mut p Parser) parse_struct_declaration() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_struct_field() !ast.StructField {
-	span := p.current_span()
-	name := p.eat_token_literal(.identifier, 'Expected field name')!
-
-	typ := p.parse_type_identifier()!
-
-	mut init := ?ast.Expression(none)
+fn (mut p Parser) parse_struct_field() ! {
+	_ = p.eat_token_literal(.identifier, 'Expected field name')!
+	_ = p.parse_type_identifier()!
 
 	if p.current_token.kind == .punc_equals {
 		p.eat(.punc_equals)!
-		init = p.parse_expression()!
+		_ = p.parse_expression()!
 	}
 
 	if p.current_token.kind == .punc_comma {
 		p.eat(.punc_comma)!
-	}
-
-	return ast.StructField{
-		identifier: ast.Identifier{
-			name: name
-			span: span
-		}
-		typ:        typ
-		init:       init
 	}
 }
 
@@ -1181,7 +1168,7 @@ fn (mut p Parser) parse_enum_declaration() !ast.Statement {
 
 	// Parse and discard variants since EnumDeclaration is removed
 	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		_ = p.parse_enum_variant()!
+		p.parse_enum_variant()!
 	}
 
 	p.pop_context()
@@ -1201,16 +1188,13 @@ fn (mut p Parser) parse_enum_declaration() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_enum_variant() !ast.EnumVariant {
-	span := p.current_span()
-	name := p.eat_token_literal(.identifier, 'Expected variant name')!
-
-	mut payload := []ast.TypeIdentifier{}
+fn (mut p Parser) parse_enum_variant() ! {
+	_ = p.eat_token_literal(.identifier, 'Expected variant name')!
 
 	if p.current_token.kind == .punc_open_paren {
 		p.eat(.punc_open_paren)!
 		for p.current_token.kind != .punc_close_paren {
-			payload << p.parse_type_identifier()!
+			_ = p.parse_type_identifier()!
 			if p.current_token.kind == .punc_comma {
 				p.eat(.punc_comma)!
 			} else {
@@ -1221,16 +1205,7 @@ fn (mut p Parser) parse_enum_variant() !ast.EnumVariant {
 	}
 
 	if p.current_token.kind == .punc_comma {
-		p.add_warning('Trailing comma after enum variant is deprecated')
 		p.eat(.punc_comma)!
-	}
-
-	return ast.EnumVariant{
-		identifier: ast.Identifier{
-			name: name
-			span: span
-		}
-		payload:    payload
 	}
 }
 
@@ -1339,8 +1314,7 @@ fn (mut p Parser) parse_import_declaration() !ast.Statement {
 
 	p.eat(.kw_import)!
 
-	mut specifiers := []ast.ImportSpecifier{}
-	p.parse_import_specifiers(mut specifiers)!
+	p.parse_import_specifiers()!
 
 	// Return a dummy VariableBinding since ImportDeclaration is not in Statement sum type
 	return ast.VariableBinding{
@@ -1356,20 +1330,12 @@ fn (mut p Parser) parse_import_declaration() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_import_specifiers(mut specifiers []ast.ImportSpecifier) ! {
-	span := p.current_span()
-	name := p.eat_token_literal(.identifier, 'Expected import specifier')!
-
-	specifiers << ast.ImportSpecifier{
-		identifier: ast.Identifier{
-			name: name
-			span: span
-		}
-	}
+fn (mut p Parser) parse_import_specifiers() ! {
+	_ = p.eat_token_literal(.identifier, 'Expected import specifier')!
 
 	if p.current_token.kind == .punc_comma {
 		p.eat(.punc_comma)!
-		p.parse_import_specifiers(mut specifiers)!
+		p.parse_import_specifiers()!
 	}
 }
 

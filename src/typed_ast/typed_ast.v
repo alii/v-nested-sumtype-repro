@@ -1,26 +1,15 @@
 module typed_ast
 
 import token
-import type_def { Type }
 import span { Span }
 
-// ============================================================================
-// Literals and Basic Nodes
-// ============================================================================
-
-pub struct StringLiteral {
+pub struct NumberLiteral {
 pub:
 	value string
 	span  Span @[required]
 }
 
-pub struct InterpolatedString {
-pub:
-	parts []Expression
-	span  Span @[required]
-}
-
-pub struct NumberLiteral {
+pub struct StringLiteral {
 pub:
 	value string
 	span  Span @[required]
@@ -30,11 +19,6 @@ pub struct BooleanLiteral {
 pub:
 	value bool
 	span  Span @[required]
-}
-
-pub struct NoneExpression {
-pub:
-	span Span @[required]
 }
 
 pub struct ErrorNode {
@@ -67,31 +51,12 @@ pub:
 	kind token.Kind
 }
 
-// ============================================================================
-// Statements (do not produce values)
-// ============================================================================
-
 pub struct VariableBinding {
 pub:
 	identifier Identifier
 	typ        ?TypeIdentifier
 	init       Expression
 	span       Span @[required]
-}
-
-pub struct ConstBinding {
-pub:
-	identifier Identifier
-	typ        ?TypeIdentifier
-	init       Expression
-	span       Span @[required]
-}
-
-pub struct TypePatternBinding {
-pub:
-	typ  TypeIdentifier
-	init Expression
-	span Span @[required]
 }
 
 pub struct FunctionParameter {
@@ -110,45 +75,6 @@ pub:
 	span        Span @[required]
 }
 
-pub struct StructField {
-pub:
-	identifier Identifier
-	typ        TypeIdentifier
-	init       ?Expression
-}
-
-pub struct StructDeclaration {
-pub:
-	identifier Identifier
-	fields     []StructField
-	span       Span @[required]
-}
-
-pub struct EnumVariant {
-pub:
-	identifier Identifier
-	payload    []TypeIdentifier
-}
-
-pub struct EnumDeclaration {
-pub:
-	identifier Identifier
-	variants   []EnumVariant
-	span       Span @[required]
-}
-
-pub struct ImportSpecifier {
-pub:
-	identifier Identifier
-}
-
-pub struct ImportDeclaration {
-pub:
-	path       string
-	specifiers []ImportSpecifier
-	span       Span @[required]
-}
-
 pub struct ExportDeclaration {
 pub:
 	declaration Statement
@@ -158,10 +84,6 @@ pub:
 pub type Statement = ExportDeclaration
 	| FunctionDeclaration
 	| VariableBinding
-
-// ============================================================================
-// Expressions (produce values)
-// ============================================================================
 
 pub struct FunctionExpression {
 pub:
@@ -178,41 +100,6 @@ pub:
 	body      Expression
 	span      Span @[required]
 	else_body ?Expression
-}
-
-pub struct MatchArm {
-pub:
-	pattern Expression
-	body    Expression
-}
-
-pub struct MatchExpression {
-pub:
-	subject Expression
-	arms    []MatchArm
-	span    Span @[required]
-}
-
-pub struct OrExpression {
-pub:
-	expression    Expression
-	receiver      ?Identifier
-	body          Expression
-	resolved_type Type
-	span          Span @[required]
-}
-
-pub struct ErrorExpression {
-pub:
-	expression Expression
-	span       Span @[required]
-}
-
-pub struct PropagateNoneExpression {
-pub:
-	expression    Expression
-	resolved_type Type
-	span          Span @[required]
 }
 
 pub struct BinaryExpression {
@@ -234,33 +121,6 @@ pub struct ArrayExpression {
 pub:
 	elements []Expression
 	span     Span @[required]
-}
-
-pub struct ArrayIndexExpression {
-pub:
-	expression Expression
-	index      Expression
-	span       Span @[required]
-}
-
-pub struct RangeExpression {
-pub:
-	start Expression
-	end   Expression
-	span  Span @[required]
-}
-
-pub struct StructInitExpression {
-pub:
-	identifier Identifier
-	fields     []StructInitField
-	span       Span @[required]
-}
-
-pub struct StructInitField {
-pub:
-	identifier Identifier
-	init       Expression
 }
 
 pub struct PropertyAccessExpression {
@@ -290,38 +150,6 @@ pub:
 	span Span @[required]
 }
 
-pub struct AssertExpression {
-pub:
-	expression Expression
-	message    Expression
-	span       Span @[required]
-}
-
-// ============================================================================
-// Patterns (used in match arms)
-// ============================================================================
-
-pub struct WildcardPattern {
-pub:
-	span Span @[required]
-}
-
-pub struct OrPattern {
-pub:
-	patterns []Expression
-	span     Span @[required]
-}
-
-pub struct SpreadExpression {
-pub:
-	expression ?Expression
-	span       Span @[required]
-}
-
-// ============================================================================
-// Sum Types
-// ============================================================================
-
 pub type Expression = ArrayExpression
 	| BinaryExpression
 	| BlockExpression
@@ -335,5 +163,3 @@ pub type Expression = ArrayExpression
 	| PropertyAccessExpression
 	| StringLiteral
 	| UnaryExpression
-
-// Note: Node type removed - use BlockItem in BlockExpression instead
