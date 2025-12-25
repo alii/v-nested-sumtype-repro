@@ -1239,40 +1239,6 @@ fn (mut p Parser) parse_binding() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_import_declaration() !ast.Statement {
-	import_span := p.current_span()
-	p.eat(.kw_from)!
-
-	path_token := p.eat(.literal_string)!
-	_ = path_token.literal or { return error('Expected string literal for import path') }
-
-	p.eat(.kw_import)!
-
-	p.parse_import_specifiers()!
-
-	// Return a dummy VariableBinding since ImportDeclaration is not in Statement sum type
-	return ast.VariableBinding{
-		identifier: ast.Identifier{
-			name: '_import'
-			span: import_span
-		}
-		init: ast.NumberLiteral{
-			value: '0'
-			span:  import_span
-		}
-		span: import_span
-	}
-}
-
-fn (mut p Parser) parse_import_specifiers() ! {
-	_ = p.eat_token_literal(.identifier, 'Expected import specifier')!
-
-	if p.current_token.kind == .punc_comma {
-		p.eat(.punc_comma)!
-		p.parse_import_specifiers()!
-	}
-}
-
 fn (mut p Parser) parse_assert_expression() !ast.Expression {
 	p.eat(.kw_assert)!
 
