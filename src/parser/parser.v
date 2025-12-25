@@ -494,46 +494,7 @@ fn (mut p Parser) parse_unary_expression() !ast.Expression {
 }
 
 fn (mut p Parser) parse_postfix_expression() !ast.Expression {
-	mut expr := p.parse_primary_expression()!
-
-	for {
-		match p.current_token.kind {
-			.punc_dot {
-				expr = p.parse_dot_expression(expr)!
-			}
-			.punc_open_bracket {
-				// only treat as array index if there's no whitespace before the bracket
-				// this allows `arr[0]` but not `arr [0]` or `x = 1\n[1, 2]`
-				if p.current_token.leading_trivia.len > 0 {
-					break
-				}
-				p.eat(.punc_open_bracket)!
-				_ = p.parse_expression()! // discard index
-				p.eat(.punc_close_bracket)!
-				// ArrayIndexExpression removed, keep expr unchanged
-			}
-			.punc_question_mark {
-				p.eat(.punc_question_mark)!
-				// PropagateNoneExpression removed, keep expr unchanged
-			}
-			.punc_dotdot {
-				p.eat(.punc_dotdot)!
-				_ = p.parse_expression()! // discard end
-				// RangeExpression removed, keep expr unchanged
-			}
-			.punc_plusplus {
-				return error('Increment operator (++) is not supported. Values are immutable in AL - use `x = x + 1` with shadowing instead.')
-			}
-			.punc_minusminus {
-				return error('Decrement operator (--) is not supported. Values are immutable in AL - use `x = x - 1` with shadowing instead.')
-			}
-			else {
-				break
-			}
-		}
-	}
-
-	return expr
+	return p.parse_primary_expression()!
 }
 
 fn (mut p Parser) parse_primary_expression() !ast.Expression {
@@ -1007,32 +968,6 @@ fn (mut p Parser) parse_binding() !ast.Statement {
 		typ:        typ
 		init:       init
 		span:       p.span_from(span)
-	}
-}
-
-fn (mut p Parser) parse_dot_expression(left ast.Expression) !ast.Expression {
-	start := left.span
-	p.eat(.punc_dot)!
-
-	span := p.current_span()
-	property := p.eat_token_literal(.identifier, 'Expected property name')!
-
-	if p.current_token.kind == .punc_open_paren {
-		call := p.parse_function_call_expression(property, span)!
-		return ast.PropertyAccessExpression{
-			left:  left
-			right: call
-			span:  p.span_from(start)
-		}
-	}
-
-	return ast.PropertyAccessExpression{
-		left:  left
-		right: ast.Identifier{
-			name: property
-			span: span
-		}
-		span:  p.span_from(start)
 	}
 }
 
