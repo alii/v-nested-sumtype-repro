@@ -598,66 +598,9 @@ fn (mut p Parser) parse_block_expression() !ast.Expression {
 fn (mut p Parser) parse_array_expression() !ast.Expression {
 	span := p.current_span()
 	p.eat(.punc_open_bracket)!
-	p.push_context(.array)
-
-	mut elements := []ast.Expression{}
-
-	for p.current_token.kind != .punc_close_bracket && p.current_token.kind != .eof {
-		elem_span := p.current_span()
-
-		if p.current_token.kind == .punc_dotdot {
-			p.eat(.punc_dotdot)!
-
-			// anonymous spread (.. followed by ] or , or else)
-			if p.current_token.kind in [.punc_close_bracket, .punc_comma, .kw_else] {
-				if p.current_token.kind == .kw_else {
-					p.advance() // skip the erroneous 'else' token
-				}
-				// skip anonymous spread
-			} else {
-				inner := p.parse_expression() or {
-					p.add_error(err.msg())
-					p.synchronize()
-					if p.current_token.kind == .punc_close_bracket {
-						break
-					}
-					elements << ast.ErrorNode{
-						message: err.msg()
-						span:    elem_span
-					}
-					continue
-				}
-				elements << inner
-			}
-		} else {
-			expr := p.parse_expression() or {
-				p.add_error(err.msg())
-				p.synchronize()
-				if p.current_token.kind == .punc_close_bracket {
-					break
-				}
-				elements << ast.ErrorNode{
-					message: err.msg()
-					span:    elem_span
-				}
-				continue
-			}
-			elements << expr
-		}
-
-		if p.current_token.kind == .punc_comma {
-			p.eat(.punc_comma)!
-		} else {
-			break
-		}
-	}
-
-	p.pop_context()
 	p.eat(.punc_close_bracket)!
-
 	return ast.ArrayExpression{
-		elements: elements
-		span:     span
+		span: span
 	}
 }
 
