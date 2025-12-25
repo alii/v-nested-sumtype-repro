@@ -239,150 +239,21 @@ fn (mut p Parser) peek_ahead(distance int) ?token.Token {
 }
 
 fn (mut p Parser) parse_expression() !ast.Expression {
-	return p.parse_or_expression()!
-}
-
-fn (mut p Parser) parse_or_expression() !ast.Expression {
-	mut left := p.parse_binary_expression()!
-
-	if p.current_token.kind == .kw_or {
-		p.eat(.kw_or)!
-
-		if p.current_token.kind == .identifier {
-			if next := p.peek_next() {
-				if next.kind == .punc_arrow {
-					_ = p.eat_token_literal(.identifier, 'Expected identifier for or receiver')!
-					p.eat(.punc_arrow)!
-				}
-			}
-		}
-
-		_ = p.parse_expression()! // discard body
-	}
-
-	return left
-}
-
-fn (mut p Parser) parse_binary_expression() !ast.Expression {
-	return p.parse_logical_or()!
-}
-
-fn (mut p Parser) parse_logical_or() !ast.Expression {
-	mut left := p.parse_logical_and()!
-
-	for p.current_token.kind == .logical_or {
-		span := p.current_span()
-		p.eat(.logical_or)!
-		right := p.parse_logical_and()!
-		left = ast.BinaryExpression{
-			left:  left
-			right: right
-			op:    ast.Operator{
-				kind: .logical_or
-			}
-			span:  span
-		}
-	}
-
-	return left
-}
-
-fn (mut p Parser) parse_logical_and() !ast.Expression {
-	mut left := p.parse_equality()!
-
-	for p.current_token.kind == .logical_and {
-		span := p.current_span()
-		p.eat(.logical_and)!
-		right := p.parse_equality()!
-		left = ast.BinaryExpression{
-			left:  left
-			right: right
-			op:    ast.Operator{
-				kind: .logical_and
-			}
-			span:  span
-		}
-	}
-
-	return left
-}
-
-fn (mut p Parser) parse_equality() !ast.Expression {
-	mut left := p.parse_comparison()!
-
-	for p.current_token.kind in [.punc_equals_comparator, .punc_not_equal] {
-		span := p.current_span()
-		operator := p.current_token.kind
-		p.eat(operator)!
-		right := p.parse_comparison()!
-		left = ast.BinaryExpression{
-			left:  left
-			right: right
-			op:    ast.Operator{
-				kind: operator
-			}
-			span:  span
-		}
-	}
-
-	return left
-}
-
-fn (mut p Parser) parse_comparison() !ast.Expression {
-	mut left := p.parse_additive()!
-
-	for p.current_token.kind in [.punc_lt, .punc_gt, .punc_lte, .punc_gte] {
-		span := p.current_span()
-		operator := p.current_token.kind
-		p.eat(operator)!
-		right := p.parse_additive()!
-		left = ast.BinaryExpression{
-			left:  left
-			right: right
-			op:    ast.Operator{
-				kind: operator
-			}
-			span:  span
-		}
-	}
-
-	return left
+	return p.parse_additive()!
 }
 
 fn (mut p Parser) parse_additive() !ast.Expression {
-	mut left := p.parse_multiplicative()!
-
-	for p.current_token.kind in [.punc_plus, .punc_minus] {
-		span := p.current_span()
-		operator := p.current_token.kind
-		p.eat(operator)!
-		right := p.parse_multiplicative()!
-		left = ast.BinaryExpression{
-			left:  left
-			right: right
-			op:    ast.Operator{
-				kind: operator
-			}
-			span:  span
-		}
-	}
-
-	return left
-}
-
-fn (mut p Parser) parse_multiplicative() !ast.Expression {
 	mut left := p.parse_unary_expression()!
 
-	for p.current_token.kind in [.punc_mul, .punc_div, .punc_mod] {
+	for p.current_token.kind == .punc_plus {
 		span := p.current_span()
-		operator := p.current_token.kind
-		p.eat(operator)!
+		p.eat(.punc_plus)!
 		right := p.parse_unary_expression()!
 		left = ast.BinaryExpression{
 			left:  left
 			right: right
 			op:    ast.Operator{
-				kind: operator
+				kind: .punc_plus
 			}
 			span:  span
 		}
