@@ -18,6 +18,10 @@ pub enum Kind {
 	punc_mul punc_div punc_mod _end_
 }
 
+// Recursive optional pointer type (like original)
+pub struct AstTypeId { pub: is_array bool is_option bool identifier AstIdent element_type ?&AstTypeId param_types []AstTypeId return_type ?&AstTypeId span Span }
+pub struct AstFnParam { pub: identifier AstIdent typ ?AstTypeId }
+
 // === AST (11 variants) ===
 pub struct AstNumber { pub: value string span Span }
 pub struct AstString { pub: value string span Span }
@@ -28,17 +32,21 @@ pub struct AstArray { pub: elems []AstExpr span Span }
 pub struct AstBinary { pub: left AstExpr right AstExpr span Span }
 pub struct AstBlock { pub: items []AstExpr span Span }
 pub struct AstIf { pub: cond AstExpr body AstExpr span Span }
-pub struct AstFn { pub: body AstExpr span Span }
+pub struct AstFn { pub: return_type ?AstTypeId params []AstFnParam body AstExpr span Span }
 pub struct AstCall { pub: callee AstExpr span Span }
 pub type AstExpr = AstNumber | AstString | AstIdent | AstError | AstBool | AstArray | AstBinary | AstBlock | AstIf | AstFn | AstCall
 
-pub struct AstVarBinding { pub: name AstIdent init AstExpr span Span }
-pub struct AstFnDecl { pub: name AstIdent body AstExpr span Span }
+pub struct AstVarBinding { pub: name AstIdent typ ?AstTypeId init AstExpr span Span }
+pub struct AstFnDecl { pub: name AstIdent return_type ?AstTypeId params []AstFnParam body AstExpr span Span }
 pub struct AstExport { pub: decl AstStmt span Span }  // recursive!
 pub type AstStmt = AstVarBinding | AstFnDecl | AstExport
 
 pub struct AstProgram { pub: body []AstNode span Span }
 pub type AstNode = AstStmt | AstExpr
+
+// Typed versions
+pub struct TTypeId { pub: is_array bool is_option bool identifier TIdent element_type ?&TTypeId param_types []TTypeId return_type ?&TTypeId span Span }
+pub struct TFnParam { pub: identifier TIdent typ ?TTypeId }
 
 // === TYPED AST (11 variants) ===
 pub struct TNumber { pub: value string span Span }
@@ -50,12 +58,12 @@ pub struct TArray { pub: elems []TExpr span Span }
 pub struct TBinary { pub: left TExpr right TExpr span Span }
 pub struct TBlock { pub: items []TExpr span Span }
 pub struct TIf { pub: cond TExpr body TExpr span Span }
-pub struct TFn { pub: body TExpr span Span }
+pub struct TFn { pub: return_type ?TTypeId params []TFnParam body TExpr span Span }
 pub struct TCall { pub: callee TExpr span Span }
 pub type TExpr = TNumber | TString | TIdent | TError | TBool | TArray | TBinary | TBlock | TIf | TFn | TCall
 
-pub struct TVarBinding { pub: name TIdent init TExpr span Span }
-pub struct TFnDecl { pub: name TIdent body TExpr span Span }
+pub struct TVarBinding { pub: name TIdent typ ?TTypeId init TExpr span Span }
+pub struct TFnDecl { pub: name TIdent return_type ?TTypeId params []TFnParam body TExpr span Span }
 pub struct TExport { pub: decl TStmt span Span }
 pub type TStmt = TVarBinding | TFnDecl | TExport
 
