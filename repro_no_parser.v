@@ -163,10 +163,48 @@ pub fn (mut s Scanner) incr_pos() { if s.input[s.state.get_pos()] == `\n` { s.st
 
 fn error_at(line int, column int, message string) Diagnostic { return Diagnostic{span: point_span(line, column), severity: .error, message: message} }
 
-// === PARSER (types only, no execution) ===
+// === PARSER (types + methods, not called) ===
 pub enum ParseContext { top_level block function_params }
 pub struct ParseResult { pub: ast AstBlockExpression diagnostics []Diagnostic }
 pub struct Parser { tokens []Token mut: index int current_token Token diagnostics []Diagnostic context_stack []ParseContext prev_token_end_line int prev_token_end_column int }
+
+pub fn new_parser(mut s Scanner) Parser {
+	tokens := s.scan_all()
+	return Parser{tokens: tokens, index: 0, current_token: tokens[0], diagnostics: s.get_diagnostics(), context_stack: [ParseContext.top_level]}
+}
+
+fn (mut p Parser) push_context(ctx ParseContext) { p.context_stack << ctx }
+fn (mut p Parser) pop_context() { if p.context_stack.len > 1 { p.context_stack.pop() } }
+fn (pr Parser) current_context() ParseContext { if pr.context_stack.len > 0 { return pr.context_stack.last() }; return .top_level }
+fn (mut p Parser) add_error(message string) { p.diagnostics << error_at(p.current_token.line, p.current_token.column, message) }
+
+fn (pr Parser) current_span() Span {
+	token_len := if lit := pr.current_token.literal { lit.len } else { pr.current_token.kind.str().len }
+	return Span{start_line: pr.current_token.line, start_column: pr.current_token.column, end_line: pr.current_token.line, end_column: pr.current_token.column + token_len}
+}
+
+fn (pr Parser) span_from(start Span) Span { return Span{start_line: start.start_line, start_column: start.start_column, end_line: pr.prev_token_end_line, end_column: pr.prev_token_end_column} }
+
+fn (mut p Parser) save_token_end() {
+	token_len := if lit := p.current_token.literal { lit.len } else { p.current_token.kind.str().len }
+	p.prev_token_end_line = p.current_token.line
+	p.prev_token_end_column = p.current_token.column + token_len
+}
+
+fn (mut p Parser) advance() { if p.index + 1 < p.tokens.len { p.save_token_end(); p.index++; p.current_token = p.tokens[p.index] } }
+
+fn (mut p Parser) eat(kind Kind) !Token {
+	if p.current_token.kind == kind { old := p.current_token; p.save_token_end(); p.index = p.index + 1; p.current_token = p.tokens[p.index]; return old }
+	return error("Expected '${kind}', got '${p.current_token}'")
+}
+
+fn (mut p Parser) eat_token_literal(kind Kind, message string) !string {
+	eaten := p.eat(kind) or { return error("${message}, got '${p.current_token}'") }
+	if unwrapped := eaten.literal { return unwrapped }
+	return error('Expected ${message}')
+}
+
+fn (mut p Parser) peek_next() ?Token { if p.index + 1 < p.tokens.len { return p.tokens[p.index + 1] }; return none }
 
 // === TYPE ENVIRONMENT ===
 pub struct TypeEnv { mut: bindings map[string]Type }
