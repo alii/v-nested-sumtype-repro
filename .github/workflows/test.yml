@@ -32,28 +32,11 @@ jobs:
       - name: V Doctor
         run: v doctor
 
-      - name: Build (Production with debug symbols)
-        if: matrix.name == 'linux'
-        run: v -prod -g -o repro_prod repro.v
-
       - name: Build (Production)
-        if: matrix.name != 'linux'
         run: v -prod -o repro_prod repro.v
 
       - name: Run (Production)
-        id: run_prod
-        run: ./repro_prod 2>&1 || true
-        continue-on-error: true
-
-      - name: Get detailed stack trace
-        if: matrix.name == 'linux'
-        run: |
-          echo "=== Attempting to get detailed stack trace with addr2line ==="
-          # Extract addresses from the crash and resolve them
-          ./repro_prod 2>&1 | grep -oP '\+0x[0-9a-f]+' | while read addr; do
-            echo "Address $addr:"
-            addr2line -e repro_prod -f -C ${addr#+} 2>/dev/null || echo "  (could not resolve)"
-          done
+        run: ./repro_prod
         continue-on-error: true
 
       - name: Build (O2) - Linux only
