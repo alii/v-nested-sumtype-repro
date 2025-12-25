@@ -41,7 +41,7 @@ v -cc gcc -cflags "-O2" -o repro_o2 .
 
 ## Minimization Findings
 
-The reproduction has been minimized to ~2700 lines across the source files.
+The reproduction has been minimized to ~2550 lines across the source files.
 
 ### Key Findings
 
@@ -56,7 +56,7 @@ The reproduction has been minimized to ~2700 lines across the source files.
 
    The bug DOES trigger when:
    - Multiple define() calls are made to a `map[string]Type`
-   - This happens during type checking of variable/const/function declarations
+   - This happens during type checking of variable/function declarations
 
 3. **Minimal type checker triggers it**: Even with:
    - No type inference or unification
@@ -65,7 +65,7 @@ The reproduction has been minimized to ~2700 lines across the source files.
    - Plus multiple `c.env.define(name, type)` calls
 
 4. **The trigger appears to be**: The combination of:
-   - Large match expressions (8 Statement variants, 27 Expression variants)
+   - Large match expressions (3 Statement variants, 13 Expression variants)
    - Two similar sum type hierarchies in different modules (ast and typed_ast)
    - Writes to a `map[string]Type` during match processing
 
@@ -135,14 +135,14 @@ This appears to be a GCC `-O3` optimization bug specific to the generated C code
 
 ```
 src/
-├── ast/ast.v           # Untyped AST (Statement 8 variants, Expression 27 variants)
+├── ast/ast.v           # Untyped AST (Statement 3 variants, Expression 13 variants)
 ├── typed_ast/          # Typed AST (mirrors untyped structure)
 ├── types/
-│   ├── checker.v       # Minimal type checker (~320 lines)
+│   ├── checker.v       # Minimal type checker (~194 lines)
 │   └── environment.v   # Simple TypeEnv with map[string]Type (~18 lines)
-├── type_def/           # Type sum type (9 variants)
-├── parser/             # Creates untyped AST (~1600 lines)
-├── scanner/            # Tokenizer for parser
+├── type_def/           # Type sum type (just TypeNone)
+├── parser/             # Creates untyped AST (~1078 lines)
+├── scanner/            # Tokenizer for parser (~485 lines)
 ├── token/              # Token types
 ├── span/               # Source location tracking
 └── diagnostic/         # Error reporting
@@ -179,7 +179,7 @@ fn (mut c TypeChecker) check_statement(stmt ast.Statement) typed_ast.Statement {
 
 ## Key Code Patterns
 
-**Recursive Statement type:**
+**Recursive Statement type (3 variants):**
 ```v
 pub struct ExportDeclaration {
 pub:
@@ -187,25 +187,26 @@ pub:
     span        Span @[required]
 }
 
-pub type Statement = ConstBinding
-    | EnumDeclaration
-    | ExportDeclaration  // <- recursive reference
+pub type Statement = ExportDeclaration  // <- recursive reference
     | FunctionDeclaration
-    | ImportDeclaration
-    | StructDeclaration
-    | TypePatternBinding
     | VariableBinding
 ```
 
-**Large Expression sum type (27 variants):**
+**Expression sum type (13 variants - the threshold):**
 ```v
 pub type Expression = ArrayExpression
-    | ArrayIndexExpression
-    | AssertExpression
     | BinaryExpression
     | BlockExpression
     | BooleanLiteral
-    // ... 21 more variants
+    | ErrorNode
+    | FunctionCallExpression
+    | FunctionExpression
+    | Identifier
+    | IfExpression
+    | NumberLiteral
+    | PropertyAccessExpression
+    | StringLiteral
+    | UnaryExpression
 ```
 
 **BlockItem bridging both types:**
