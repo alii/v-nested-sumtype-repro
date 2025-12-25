@@ -127,102 +127,17 @@ pub fn (mut s Scanner) scan_next() token.Token {
 	}
 
 	if token.is_quote(ch) {
-		if ch == `\`` {
-			next := s.peek_char()
-			if next == `\`` {
-				s.add_error('Character literals must not be empty')
-				s.incr_pos()
-				return s.new_token(.error, none)
-			}
-
-			s.incr_pos()
-
-			expected_closing_quote := s.peek_char()
-			if expected_closing_quote != `\`` {
-				s.add_error("Character literals must be a single character and end with a backtick (got '${expected_closing_quote.ascii_str()}')")
-				// try to skip until we recover
-				for {
-					peek := s.peek_char()
-					if peek == 0 || peek == `\n` || peek == `\`` {
-						if peek == `\`` {
-							s.incr_pos()
-						}
-						break
-					}
-					s.incr_pos()
-				}
-				return s.new_token(.error, none)
-			}
-
-			// Skip the closing quote
-			s.incr_pos()
-
-			return s.new_token(.literal_char, next.ascii_str())
-		}
-
 		mut result := ''
-		mut has_interpolation := false
-		mut has_error := false
-
 		for {
 			next := s.peek_char()
-
-			// check for unterminated string
-			if next == 0 || next == `\n` {
-				s.add_error('Unterminated string literal')
-				has_error = true
-				break
-			}
-
-			s.incr_pos()
-
-			if next == ch {
-				break
-			}
-
-			mut next_char := next.ascii_str()
-
-			if next == `$` {
-				has_interpolation = true
-			}
-
-			if next == `\\` {
-				peeked := s.peek_char()
-				s.incr_pos()
-
-				if peeked == `n` {
-					next_char = '\n'
-				} else if peeked == `t` {
-					next_char = '\t'
-				} else if peeked == `r` {
-					next_char = '\r'
-				} else if peeked == `0` {
-					next_char = '\0'
-				} else if peeked == `"` {
-					next_char = '"'
-				} else if peeked == `'` {
-					next_char = "'"
-				} else if peeked == `\\` {
-					next_char = '\\'
-				} else if peeked == `$` {
-					// Escaped $, don't mark as interpolation
-					next_char = '$'
-				} else {
-					s.add_error("Unknown escape sequence '\\${peeked.ascii_str()}'")
-					// Continue scanning to recover
-					next_char = peeked.ascii_str()
+			if next == 0 || next == `\n` || next == ch {
+				if next == ch {
+					s.incr_pos()
 				}
+				break
 			}
-
-			result += next_char
-		}
-
-		if has_error {
-			return s.new_token(.error, result)
-		}
-
-		if has_interpolation {
-			return s.new_token(.literal_string_interpolation, result)
+			s.incr_pos()
+			result += next.ascii_str()
 		}
 		return s.new_token(.literal_string, result)
 	}
