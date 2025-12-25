@@ -142,20 +142,6 @@ pub fn (mut s Scanner) scan_next() token.Token {
 		return s.new_token(.literal_string, result)
 	}
 
-	if ch == `&` {
-		if s.peek_char() == `&` {
-			s.incr_pos()
-			return s.new_token(.logical_and, none)
-		}
-	}
-
-	if ch == `|` {
-		if s.peek_char() == `|` {
-			s.incr_pos()
-			return s.new_token(.logical_or, none)
-		}
-	}
-
 	return match ch {
 		`,` {
 			s.new_token(.punc_comma, none)
@@ -185,18 +171,10 @@ pub fn (mut s Scanner) scan_next() token.Token {
 			s.new_token(.punc_dot, none)
 		}
 		`+` {
-			if s.peek_char() == `+` {
-				s.incr_pos()
-				return s.new_token(.punc_plusplus, none)
-			}
-			return s.new_token(.punc_plus, none)
+			s.new_token(.punc_plus, none)
 		}
 		`-` {
-			if s.peek_char() == `-` {
-				s.incr_pos()
-				return s.new_token(.punc_minusminus, none)
-			}
-			return s.new_token(.punc_minus, none)
+			s.new_token(.punc_minus, none)
 		}
 		`*` {
 			s.new_token(.punc_mul, none)
@@ -205,73 +183,28 @@ pub fn (mut s Scanner) scan_next() token.Token {
 			s.new_token(.punc_mod, none)
 		}
 		`!` {
-			if s.peek_char() == `=` {
-				s.incr_pos()
-				return s.new_token(.punc_not_equal, none)
-			}
 			s.new_token(.punc_exclamation_mark, none)
 		}
 		`?` {
 			s.new_token(.punc_question_mark, none)
 		}
 		`:` {
-			return s.new_token(.punc_colon, none)
+			s.new_token(.punc_colon, none)
 		}
 		`>` {
-			next := s.peek_char()
-			s.incr_pos()
-
-			if next == `=` {
-				return s.new_token(.punc_gte, none)
-			}
-
-			return s.new_token(.punc_gt, none)
+			s.new_token(.punc_gt, none)
 		}
 		`<` {
-			next := s.peek_char()
-			s.incr_pos()
-
-			if next == `=` {
-				return s.new_token(.punc_lte, none)
-			}
-
-			return s.new_token(.punc_lt, none)
+			s.new_token(.punc_lt, none)
 		}
 		`/` {
 			s.new_token(.punc_div, none)
 		}
 		`|` {
-			if s.peek_char() == `|` {
-				s.incr_pos()
-				return s.new_token(.logical_or, none)
-			}
 			s.new_token(.bitwise_or, none)
 		}
 		`=` {
-			next := s.peek_char()
-
-			if next == `=` {
-				s.incr_pos()
-				return s.new_token(.punc_equals_comparator, none)
-			}
-
-			return s.new_token(.punc_equals, none)
-		}
-		`"` {
-			s.add_error("Double quotes are not valid string delimiters. Use single quotes (') for strings or backticks (`) for character literals.")
-
-			// try to skip until we recover
-			for {
-				next := s.peek_char()
-				if next == 0 || next == `\n` {
-					break
-				}
-				s.incr_pos()
-				if next == `"` {
-					break
-				}
-			}
-			return s.new_token(.error, none)
+			s.new_token(.punc_equals, none)
 		}
 		else {
 			s.add_error("Unexpected character '${ch.ascii_str()}'")
