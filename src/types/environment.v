@@ -1,6 +1,6 @@
 module types
 
-import type_def { Type, t_bool, t_float, t_int, t_none, t_string }
+import type_def { Type }
 
 pub struct TypeEnv {
 mut:
