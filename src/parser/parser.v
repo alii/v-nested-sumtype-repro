@@ -30,15 +30,12 @@ mut:
 }
 
 pub fn new_parser(mut s scanner.Scanner) Parser {
-	return new_parser_from_tokens(s.scan_all(), s.get_diagnostics())
-}
-
-pub fn new_parser_from_tokens(tokens []token.Token, scanner_diagnostics []diagnostic.Diagnostic) Parser {
+	tokens := s.scan_all()
 	return Parser{
 		tokens:        tokens
 		index:         0
 		current_token: tokens[0]
-		diagnostics:   scanner_diagnostics
+		diagnostics:   s.get_diagnostics()
 		context_stack: [ParseContext.top_level]
 	}
 }
@@ -158,17 +155,11 @@ fn (mut p Parser) eat(kind token.Kind) !token.Token {
 	return error("Expected '${kind}', got '${p.current_token}'")
 }
 
-fn (mut p Parser) eat_msg(kind token.Kind, message string) !token.Token {
-	return p.eat(kind) or { return error("${message}, got '${p.current_token}'") }
-}
-
 fn (mut p Parser) eat_token_literal(kind token.Kind, message string) !string {
-	eaten := p.eat_msg(kind, message)!
-
+	eaten := p.eat(kind) or { return error("${message}, got '${p.current_token}'") }
 	if unwrapped := eaten.literal {
 		return unwrapped
 	}
-
 	return error('Expected ${message}')
 }
 
@@ -226,15 +217,6 @@ fn (mut p Parser) peek_next() ?token.Token {
 	if p.index + 1 < p.tokens.len {
 		return p.tokens[p.index + 1]
 	}
-
-	return none
-}
-
-fn (mut p Parser) peek_ahead(distance int) ?token.Token {
-	if p.index + distance < p.tokens.len {
-		return p.tokens[p.index + distance]
-	}
-
 	return none
 }
 
@@ -243,12 +225,12 @@ fn (mut p Parser) parse_expression() !ast.Expression {
 }
 
 fn (mut p Parser) parse_additive() !ast.Expression {
-	mut left := p.parse_unary_expression()!
+	mut left := p.parse_primary_expression()!
 
 	for p.current_token.kind == .punc_plus {
 		span := p.current_span()
 		p.eat(.punc_plus)!
-		right := p.parse_unary_expression()!
+		right := p.parse_primary_expression()!
 		left = ast.BinaryExpression{
 			left:  left
 			right: right
@@ -260,10 +242,6 @@ fn (mut p Parser) parse_additive() !ast.Expression {
 	}
 
 	return left
-}
-
-fn (mut p Parser) parse_unary_expression() !ast.Expression {
-	return p.parse_primary_expression()!
 }
 
 fn (mut p Parser) parse_primary_expression() !ast.Expression {
