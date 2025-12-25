@@ -496,43 +496,21 @@ fn (mut p Parser) parse_parameter() !ast.FunctionParameter {
 }
 
 fn (mut p Parser) is_type_start() bool {
-	if p.current_token.kind == .punc_question_mark {
-		return true
-	}
-
-	if p.current_token.kind == .punc_open_bracket {
-		if next := p.peek_next() {
-			return next.kind == .punc_close_bracket
-		}
-		return false
-	}
-
 	if p.current_token.kind == .identifier {
 		if name := p.current_token.literal {
 			return name.len > 0 && name[0] >= `A` && name[0] <= `Z`
 		}
 	}
-
 	return false
 }
 
 fn (mut p Parser) is_type_start_at_next() bool {
 	next := p.peek_next() or { return false }
-
-	if next.kind == .punc_question_mark {
-		return true
-	}
-
-	if next.kind == .punc_open_bracket {
-		return true
-	}
-
 	if next.kind == .identifier {
 		if name := next.literal {
 			return name.len > 0 && name[0] >= `A` && name[0] <= `Z`
 		}
 	}
-
 	return false
 }
 
