@@ -85,7 +85,7 @@ The `repro.v` file contains:
 - Span struct (source locations)
 - Token types and Kind enum (65 variants)
 - Diagnostic types
-- AST types (13 Expression variants, 2 Statement variants)
+- AST types (Expression and Statement sum types)
 - Typed AST types (mirrors AST structure)
 - Scanner (~100 lines)
 - Parser (~150 lines)
