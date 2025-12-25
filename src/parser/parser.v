@@ -1215,33 +1215,6 @@ fn (mut p Parser) parse_struct_init_expression(name string, name_span sp.Span) !
 	}
 }
 
-fn (mut p Parser) parse_const_binding() !ast.Statement {
-	span := p.current_span()
-	p.eat(.kw_const)!
-
-	name_span := p.current_span()
-	name := p.eat_token_literal(.identifier, 'Expected const name')!
-
-	mut typ := ?ast.TypeIdentifier(none)
-	if p.is_type_start() {
-		typ = p.parse_type_identifier()!
-	}
-
-	p.eat(.punc_equals)!
-
-	init := p.parse_expression()!
-
-	return ast.VariableBinding{
-		identifier: ast.Identifier{
-			name: name
-			span: name_span
-		}
-		typ:        typ
-		init:       init
-		span:       span
-	}
-}
-
 fn (mut p Parser) parse_binding() !ast.Statement {
 	span := p.current_span()
 	name := p.eat_token_literal(.identifier, 'Expected identifier')!
