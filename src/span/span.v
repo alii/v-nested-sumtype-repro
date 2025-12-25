@@ -16,12 +16,3 @@ pub fn point_span(line int, column int) Span {
 		end_column:   column + 1
 	}
 }
-
-pub fn range_span(line int, start_column int, end_column int) Span {
-	return Span{
-		start_line:   line
-		start_column: start_column
-		end_line:     line
-		end_column:   end_column
-	}
-}
