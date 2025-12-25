@@ -38,8 +38,19 @@ jobs:
       - name: Build (Production)
         run: v -prod -o repro_prod repro.v
 
-      - name: Run (Production)
+      - name: Run (Production) - 13 variants EXPECTED TO CRASH on Linux
+        if: matrix.name != 'linux'
         run: ./repro_prod
+
+      - name: Run (Production) - 13 variants CRASHES on Linux (expected)
+        if: matrix.name == 'linux'
+        continue-on-error: true
+        run: |
+          if ./repro_prod; then
+            echo "UNEXPECTED: 13-variant version worked!"
+          else
+            echo "EXPECTED: 13-variant version crashed with exit code $?"
+          fi
 
       - name: Build (O2 only)
         if: matrix.name == 'linux'
