@@ -30,7 +30,7 @@ jobs:
           echo "/tmp/v" >> $GITHUB_PATH
 
       - name: Build (Production)
-        run: v -prod -o repro_prod repro_test.v
+        run: v -prod -o repro_prod repro_norecursive.v
 
       - name: Run (Production)
         run: ./repro_prod

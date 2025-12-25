@@ -71,8 +71,7 @@ pub struct AstOperator { pub: kind Kind }
 pub struct AstVariableBinding { pub: identifier AstIdentifier typ ?AstTypeIdentifier init AstExpression span Span @[required] }
 pub struct AstFunctionParameter { pub: identifier AstIdentifier typ ?AstTypeIdentifier }
 pub struct AstFunctionDeclaration { pub: identifier AstIdentifier return_type ?AstTypeIdentifier error_type ?AstTypeIdentifier params []AstFunctionParameter body AstExpression span Span @[required] }
-pub struct AstExportDeclaration { pub: declaration AstStatement span Span @[required] }
-pub type AstStatement = AstExportDeclaration | AstFunctionDeclaration | AstVariableBinding
+pub type AstStatement = AstFunctionDeclaration | AstVariableBinding
 pub struct AstFunctionExpression { pub: return_type ?AstTypeIdentifier error_type ?AstTypeIdentifier params []AstFunctionParameter body AstExpression span Span @[required] }
 pub struct AstIfExpression { pub: condition AstExpression body AstExpression span Span @[required] else_body ?AstExpression }
 pub struct AstBinaryExpression { pub: left AstExpression right AstExpression op AstOperator span Span @[required] }
@@ -95,8 +94,7 @@ pub struct TOperator { pub: kind Kind }
 pub struct TVariableBinding { pub: identifier TIdentifier typ ?TTypeIdentifier init TExpression span Span @[required] }
 pub struct TFunctionParameter { pub: identifier TIdentifier typ ?TTypeIdentifier }
 pub struct TFunctionDeclaration { pub: identifier TIdentifier return_type ?TTypeIdentifier error_type ?TTypeIdentifier params []TFunctionParameter body TExpression span Span @[required] }
-pub struct TExportDeclaration { pub: declaration TStatement span Span @[required] }
-pub type TStatement = TExportDeclaration | TFunctionDeclaration | TVariableBinding
+pub type TStatement = TFunctionDeclaration | TVariableBinding
 pub struct TFunctionExpression { pub: return_type ?TTypeIdentifier error_type ?TTypeIdentifier params []TFunctionParameter body TExpression span Span @[required] }
 pub struct TIfExpression { pub: condition TExpression body TExpression span Span @[required] else_body ?TExpression }
 pub struct TBinaryExpression { pub: left TExpression right TExpression op TOperator span Span @[required] }
@@ -118,6 +116,7 @@ pub fn (mut s ScannerState) incr_line() { s.line++; s.column = 0 }
 pub fn (mut s ScannerState) incr_column() { s.column++ }
 
 // === SCANNER ===
+@[heap]
 pub struct Scanner { input string mut: state &ScannerState diagnostics []Diagnostic token_start_column int token_start_line int }
 
 pub fn new_scanner(input string) &Scanner { return &Scanner{input: input, state: &ScannerState{}, diagnostics: []Diagnostic{}} }
@@ -431,7 +430,6 @@ fn (mut c TypeChecker) check_statement(stmt AstStatement) TStatement {
 			typed_body := c.check_expr(stmt.body)
 			return TFunctionDeclaration{identifier: convert_id(stmt.identifier), body: typed_body, span: stmt.span}
 		}
-		AstExportDeclaration { return TExportDeclaration{declaration: c.check_statement(stmt.declaration), span: stmt.span} }
 	}
 }
 
