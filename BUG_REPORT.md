@@ -2,7 +2,7 @@
 
 ## Summary
 
-A single 476-line V file causes a segmentation fault when compiled with `-prod` (GCC -O3) on Linux x86_64. The same code works correctly on macOS, and on Linux with `-O2` or debug builds.
+A single 472-line V file causes a segmentation fault when compiled with `-prod` (GCC -O3) on Linux x86_64. The same code works correctly on macOS, and on Linux with `-O2` or debug builds.
 
 **Reproduction**: https://github.com/alii/v-nested-sumtype-repro
 
@@ -35,7 +35,7 @@ v -cc gcc -cflags "-O2" -o repro repro.v
 
 ## Root Cause Analysis
 
-After extensive minimization (4000 lines → 476 lines) and systematic testing, we identified the **required** trigger:
+After extensive minimization (4000 lines → 472 lines) and systematic testing, we identified the **required** trigger:
 
 ### Verified Required Components
 
@@ -77,7 +77,7 @@ The crash occurs in the type checker phase, after parsing completes successfully
 | After removing unrelated features | ~2350   | 18    | Yes           |
 | After compacting utilities        | ~1600   | 15    | Yes           |
 | After compacting all files        | ~950    | 13    | Yes           |
-| **Single file**                   | **476** | **1** | **Yes**       |
+| **Single file**                   | **472** | **1** | **Yes**       |
 
 ## File Structure (Single File)
 
@@ -85,7 +85,7 @@ The `repro.v` file contains:
 - Span struct (source locations)
 - Token types and Kind enum (65 variants)
 - Diagnostic types
-- AST types (13 Expression variants, 3 Statement variants)
+- AST types (13 Expression variants, 2 Statement variants)
 - Typed AST types (mirrors AST structure)
 - Scanner (~100 lines)
 - Parser (~150 lines)
