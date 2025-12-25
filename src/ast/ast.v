@@ -35,15 +35,8 @@ pub:
 
 pub struct TypeIdentifier {
 pub:
-	is_array     bool
-	is_option    bool
-	is_function  bool
-	identifier   Identifier
-	element_type ?&TypeIdentifier
-	param_types  []TypeIdentifier
-	return_type  ?&TypeIdentifier
-	error_type   ?&TypeIdentifier
-	span         Span @[required]
+	identifier Identifier
+	span       Span @[required]
 }
 
 pub struct Operator {
