@@ -37,3 +37,12 @@ jobs:
 
       - name: Run (Production)
         run: ./repro_prod
+        continue-on-error: true
+
+      - name: Build (O2) - Linux only
+        if: matrix.name == 'linux'
+        run: v -cc gcc -cflags "-O2" -o repro_o2 repro.v
+
+      - name: Run (O2) - Linux only
+        if: matrix.name == 'linux'
+        run: ./repro_o2
