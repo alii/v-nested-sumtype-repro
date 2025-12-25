@@ -186,19 +186,6 @@ fn (mut c TypeChecker) check_expr(expr ast.Expression) typed_ast.Expression {
 	}
 }
 
-fn convert_type_identifier(t ast.TypeIdentifier) typed_ast.TypeIdentifier {
-	return typed_ast.TypeIdentifier{
-		is_array:    t.is_array
-		is_option:   t.is_option
-		is_function: t.is_function
-		identifier:  typed_ast.Identifier{
-			name: t.identifier.name
-			span: t.identifier.span
-		}
-		span:        t.span
-	}
-}
-
 fn convert_identifier(id ast.Identifier) typed_ast.Identifier {
 	return typed_ast.Identifier{
 		name: id.name
