@@ -33,6 +33,19 @@ pub:
 	span Span @[required]
 }
 
+pub struct TypeIdentifier {
+pub:
+	is_array     bool
+	is_option    bool
+	is_function  bool
+	identifier   Identifier
+	element_type ?&TypeIdentifier
+	param_types  []TypeIdentifier
+	return_type  ?&TypeIdentifier
+	error_type   ?&TypeIdentifier
+	span         Span @[required]
+}
+
 pub struct Operator {
 pub:
 	kind token.Kind
@@ -41,15 +54,25 @@ pub:
 pub struct VariableBinding {
 pub:
 	identifier Identifier
+	typ        ?TypeIdentifier
 	init       Expression
 	span       Span @[required]
 }
 
-pub struct FunctionDeclaration {
+pub struct FunctionParameter {
 pub:
 	identifier Identifier
-	body       Expression
-	span       Span @[required]
+	typ        ?TypeIdentifier
+}
+
+pub struct FunctionDeclaration {
+pub:
+	identifier  Identifier
+	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
+	params      []FunctionParameter
+	body        Expression
+	span        Span @[required]
 }
 
 pub struct ExportDeclaration {
@@ -64,8 +87,11 @@ pub type Statement = ExportDeclaration
 
 pub struct FunctionExpression {
 pub:
-	body Expression
-	span Span @[required]
+	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
+	params      []FunctionParameter
+	body        Expression
+	span        Span @[required]
 }
 
 pub struct IfExpression {

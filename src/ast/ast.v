@@ -35,8 +35,15 @@ pub:
 
 pub struct TypeIdentifier {
 pub:
-	identifier Identifier
-	span       Span @[required]
+	is_array     bool
+	is_option    bool
+	is_function  bool
+	identifier   Identifier
+	element_type ?&TypeIdentifier
+	param_types  []TypeIdentifier
+	return_type  ?&TypeIdentifier
+	error_type   ?&TypeIdentifier
+	span         Span @[required]
 }
 
 pub struct Operator {
@@ -62,6 +69,7 @@ pub struct FunctionDeclaration {
 pub:
 	identifier  Identifier
 	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
 	params      []FunctionParameter
 	body        Expression
 	span        Span @[required]
@@ -80,6 +88,7 @@ pub type Statement = ExportDeclaration
 pub struct FunctionExpression {
 pub:
 	return_type ?TypeIdentifier
+	error_type  ?TypeIdentifier
 	params      []FunctionParameter
 	body        Expression
 	span        Span @[required]
