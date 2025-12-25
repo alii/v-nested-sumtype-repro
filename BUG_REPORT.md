@@ -10,11 +10,11 @@ v -prod -o repro repro.v && ./repro
 
 ## Results
 
-| Platform | Command | Result |
-|----------|---------|--------|
-| Linux x86_64 | `v -prod` | Segfault |
-| Linux x86_64 | `v` (debug) | Works |
-| macOS ARM64 | `v -prod` | Works |
+| Platform     | Command     | Result   |
+| ------------ | ----------- | -------- |
+| Linux x86_64 | `v -prod`   | Segfault |
+| Linux x86_64 | `v` (debug) | Works    |
+| macOS ARM64  | `v -prod`   | Works    |
 
 ## CI
 
