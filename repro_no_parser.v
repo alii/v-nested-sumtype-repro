@@ -163,6 +163,11 @@ pub fn (mut s Scanner) incr_pos() { if s.input[s.state.get_pos()] == `\n` { s.st
 
 fn error_at(line int, column int, message string) Diagnostic { return Diagnostic{span: point_span(line, column), severity: .error, message: message} }
 
+// === PARSER (types only, no execution) ===
+pub enum ParseContext { top_level block function_params }
+pub struct ParseResult { pub: ast AstBlockExpression diagnostics []Diagnostic }
+pub struct Parser { tokens []Token mut: index int current_token Token diagnostics []Diagnostic context_stack []ParseContext prev_token_end_line int prev_token_end_column int }
+
 // === TYPE ENVIRONMENT ===
 pub struct TypeEnv { mut: bindings map[string]Type }
 pub fn new_env() TypeEnv { return TypeEnv{bindings: map[string]Type{}} }
