@@ -1,39 +1,15 @@
 module state
 
-const default_column_n = 0
-
 pub struct ScannerState {
 mut:
 	pos    int
-	column int = default_column_n
+	column int
 	line   int
 }
 
-@[inline]
-pub fn (mut s ScannerState) get_pos() int {
-	return s.pos
-}
-
-@[inline]
-pub fn (mut s ScannerState) incr_pos() {
-	s.pos++
-}
-
-@[inline]
-pub fn (s ScannerState) get_line() int {
-	return s.line
-}
-
-@[inline]
-pub fn (s ScannerState) get_column() int {
-	return s.column
-}
-
-pub fn (mut s ScannerState) incr_line() {
-	s.line++
-	s.column = default_column_n
-}
-
-pub fn (mut s ScannerState) incr_column() {
-	s.column++
-}
+pub fn (mut s ScannerState) get_pos() int { return s.pos }
+pub fn (mut s ScannerState) incr_pos() { s.pos++ }
+pub fn (s ScannerState) get_line() int { return s.line }
+pub fn (s ScannerState) get_column() int { return s.column }
+pub fn (mut s ScannerState) incr_line() { s.line++; s.column = 0 }
+pub fn (mut s ScannerState) incr_column() { s.column++ }

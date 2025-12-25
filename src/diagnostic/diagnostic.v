@@ -2,10 +2,7 @@ module diagnostic
 
 import span { Span, point_span }
 
-pub enum Severity {
-	error
-}
-
+pub enum Severity { error }
 pub struct Diagnostic {
 pub:
 	span     Span
@@ -14,9 +11,5 @@ pub:
 }
 
 pub fn error_at(line int, column int, message string) Diagnostic {
-	return Diagnostic{
-		span:     point_span(line, column)
-		severity: .error
-		message:  message
-	}
+	return Diagnostic{span: point_span(line, column), severity: .error, message: message}
 }

@@ -9,10 +9,5 @@ pub:
 }
 
 pub fn point_span(line int, column int) Span {
-	return Span{
-		start_line:   line
-		start_column: column
-		end_line:     line
-		end_column:   column + 1
-	}
+	return Span{start_line: line, start_column: column, end_line: line, end_column: column + 1}
 }
