@@ -478,14 +478,10 @@ fn (mut p Parser) parse_parameters() ![]ast.FunctionParameter {
 fn (mut p Parser) parse_parameter() !ast.FunctionParameter {
 	span := p.current_span()
 	name := p.eat_token_literal(.identifier, 'Expected parameter name')!
-
 	mut typ := ?ast.TypeIdentifier(none)
-
-	if p.current_token.kind == .identifier || p.current_token.kind == .punc_open_bracket
-		|| p.current_token.kind == .punc_question_mark || p.current_token.kind == .kw_function {
+	if p.is_type_start() {
 		typ = p.parse_type_identifier()!
 	}
-
 	return ast.FunctionParameter{
 		typ:        typ
 		identifier: ast.Identifier{
