@@ -413,7 +413,7 @@ fn (mut p Parser) parse_function_declaration() !ast.Statement {
 	name := p.eat_token_literal(.identifier, 'Expected function name')!
 
 	params := p.parse_parameters()!
-	return_type, error_type := p.parse_function_return_types()!
+	return_type := p.parse_function_return_type()
 	body := p.parse_block_expression()!
 
 	return ast.FunctionDeclaration{
@@ -423,7 +423,6 @@ fn (mut p Parser) parse_function_declaration() !ast.Statement {
 		}
 		params:      params
 		return_type: return_type
-		error_type:  error_type
 		body:        body
 		span:        fn_span
 	}
@@ -434,24 +433,22 @@ fn (mut p Parser) parse_function_expression() !ast.Expression {
 	p.eat(.kw_function)!
 
 	params := p.parse_parameters()!
-	return_type, error_type := p.parse_function_return_types()!
+	return_type := p.parse_function_return_type()
 	body := p.parse_block_expression()!
 
 	return ast.FunctionExpression{
 		params:      params
 		return_type: return_type
-		error_type:  error_type
 		body:        body
 		span:        fn_span
 	}
 }
 
-fn (mut p Parser) parse_function_return_types() !(?ast.TypeIdentifier, ?ast.TypeIdentifier) {
-	mut return_type := ?ast.TypeIdentifier(none)
+fn (mut p Parser) parse_function_return_type() ?ast.TypeIdentifier {
 	if p.current_token.kind == .identifier {
-		return_type = p.parse_type_identifier()!
+		return p.parse_type_identifier() or { return none }
 	}
-	return return_type, none
+	return none
 }
 
 fn (mut p Parser) parse_parameters() ![]ast.FunctionParameter {

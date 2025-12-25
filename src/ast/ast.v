@@ -62,7 +62,6 @@ pub struct FunctionDeclaration {
 pub:
 	identifier  Identifier
 	return_type ?TypeIdentifier
-	error_type  ?TypeIdentifier
 	params      []FunctionParameter
 	body        Expression
 	span        Span @[required]
@@ -81,7 +80,6 @@ pub type Statement = ExportDeclaration
 pub struct FunctionExpression {
 pub:
 	return_type ?TypeIdentifier
-	error_type  ?TypeIdentifier
 	params      []FunctionParameter
 	body        Expression
 	span        Span @[required]
@@ -151,10 +149,3 @@ pub type Expression = ArrayExpression
 	| UnaryExpression
 
 pub type Node = Statement | Expression
-
-pub fn node_span(node Node) Span {
-	return match node {
-		Statement { node.span }
-		Expression { node.span }
-	}
-}
