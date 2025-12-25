@@ -13,11 +13,8 @@ mut:
 
 pub struct CheckResult {
 pub:
-	diagnostics  []diagnostic.Diagnostic
-	success      bool
-	env          TypeEnv
-	typed_ast    typed_ast.BlockExpression
-	program_type Type
+	success   bool
+	typed_ast typed_ast.BlockExpression
 }
 
 pub fn check(program ast.BlockExpression) CheckResult {
@@ -26,14 +23,11 @@ pub fn check(program ast.BlockExpression) CheckResult {
 		diagnostics: []diagnostic.Diagnostic{}
 	}
 
-	typed_block, program_type := checker.check_block(program)
+	typed_block, _ := checker.check_block(program)
 
 	return CheckResult{
-		diagnostics:  checker.diagnostics
-		success:      checker.diagnostics.len == 0
-		env:          checker.env
-		typed_ast:    typed_block
-		program_type: program_type
+		success:   checker.diagnostics.len == 0
+		typed_ast: typed_block
 	}
 }
 
