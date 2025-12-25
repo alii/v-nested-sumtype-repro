@@ -35,60 +35,30 @@ v -cc gcc -cflags "-O2" -o repro repro.v
 
 ## Root Cause Analysis
 
-After extensive minimization (4000 lines → 476 lines), we identified the trigger:
-
-### The Magic Number: 13 Expression Variants
-
-The bug is extremely sensitive to sum type size:
-
-- **12 Expression variants**: Works
-- **13 Expression variants**: **Segfault**
-
-This is the exact threshold - adding just one more variant to a working 12-variant sum type triggers the crash.
+After extensive minimization (4000 lines → 476 lines), the bug requires a specific combination of components:
 
 ### Required Components
 
 The bug requires ALL of these together:
-
 1. **Two parallel sum type hierarchies** (AST and TypedAST with same structure)
-2. **13+ Expression variants** in each hierarchy
+2. **Multiple Expression variants** (13 in the current repro)
 3. **Recursive Statement type** (ExportDeclaration contains Statement)
-4. **Match expressions** over these sum types
-5. **Map writes** during match processing (`map[string]Type`)
+4. **Full parser** with match expressions over the sum types
+5. **Type checker** with map writes (`map[string]Type`)
+6. **Scanner** with @[heap] struct and reference to state
 
-Removing any one component causes the bug to disappear.
+### What We Tested
 
-### Minimal Triggering Pattern
+| Configuration | Crashes? |
+|--------------|----------|
+| All components (repro.v) | Yes |
+| Without parser (manual AST) | No |
+| Scanner + type checker only | No |
+| Parser types only (no methods) | No |
+| Parser helper methods only | No |
+| Full parser + type checker | Yes |
 
-```v
-// Two parallel sum types with 13 variants each
-pub type AstExpression = A | B | C | D | E | F | G | H | I | J | K | L | M  // 13 variants
-pub type TExpression = A | B | C | D | E | F | G | H | I | J | K | L | M    // 13 variants
-
-// Recursive statement type
-pub type AstStatement = AstExportDeclaration | ...
-pub struct AstExportDeclaration { declaration AstStatement }  // recursive!
-
-// Type environment with map
-pub struct TypeEnv { mut: bindings map[string]Type }
-
-// Match + map write = crash
-fn (mut c TypeChecker) check_expr(expr AstExpression) TExpression {
-    match expr {
-        AstNumberLiteral { return TNumberLiteral{...} }
-        // ... 12 more variants
-    }
-}
-
-fn (mut c TypeChecker) check_statement(stmt AstStatement) TStatement {
-    match stmt {
-        AstVariableBinding {
-            c.env.bindings[name] = t  // Map write during match triggers it
-            // ...
-        }
-    }
-}
-```
+The bug specifically requires the full parser execution in combination with the type checker and sum type hierarchy.
 
 ## The Crash
 
@@ -116,7 +86,6 @@ The crash occurs in the type checker phase, after parsing completes successfully
 ## File Structure (Single File)
 
 The `repro.v` file contains:
-
 - Span struct (source locations)
 - Token types and Kind enum (65 variants)
 - Diagnostic types
@@ -130,7 +99,6 @@ The `repro.v` file contains:
 ## V Version
 
 Tested with:
-
 - V weekly.2025.49-103-g1cdb0f57
 - Latest V from GitHub releases
 
@@ -143,7 +111,6 @@ v -cc gcc -cflags "-O2" -o myapp .
 ```
 
 Or in CI:
-
 ```yaml
 - name: Build
   run: |
@@ -156,13 +123,13 @@ Or in CI:
 
 ## Hypothesis
 
-This appears to be a GCC -O3 optimization bug triggered by the specific memory layout of:
-
-- Large sum types (13+ variants)
+This appears to be a GCC -O3 optimization bug triggered by the specific code patterns in the generated C code. The combination of:
+- Large sum types with many variants
 - Recursive type definitions
+- Complex match expressions in parser
 - Map operations during pattern matching
 
-The -O3 optimization likely miscompiles something in the generated C code for sum type dispatch or map access patterns.
+creates a code pattern that GCC -O3 miscompiles on Linux x86_64.
 
 ## CI
 
