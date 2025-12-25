@@ -537,92 +537,14 @@ fn (mut p Parser) is_type_start_at_next() bool {
 }
 
 fn (mut p Parser) parse_type_identifier() !ast.TypeIdentifier {
-	mut is_option := false
-
-	if p.current_token.kind == .punc_question_mark {
-		is_option = true
-		p.eat(.punc_question_mark)!
-	}
-
-	// Array type: []T where T can itself be an array type
-	if p.current_token.kind == .punc_open_bracket {
-		start_span := p.current_span()
-		p.eat(.punc_open_bracket)!
-		p.eat(.punc_close_bracket)!
-		inner := p.parse_type_identifier()!
-		return ast.TypeIdentifier{
-			is_option:    is_option
-			is_array:     true
-			element_type: &inner
-			identifier:   ast.Identifier{
-				span: start_span
-			}
-			span:         p.span_from(start_span)
-		}
-	}
-
-	if p.current_token.kind == .kw_function {
-		return p.parse_function_type(is_option)!
-	}
-
 	span := p.current_span()
 	name := p.eat_token_literal(.identifier, 'Expected type name')!
-
 	return ast.TypeIdentifier{
-		is_option:  is_option
-		is_array:   false
 		identifier: ast.Identifier{
 			name: name
 			span: span
 		}
-		span:       span
-	}
-}
-
-fn (mut p Parser) parse_function_type(is_option bool) !ast.TypeIdentifier {
-	span := p.current_span()
-	p.eat(.kw_function)!
-	p.eat(.punc_open_paren)!
-
-	mut param_types := []ast.TypeIdentifier{}
-
-	for p.current_token.kind != .punc_close_paren && p.current_token.kind != .eof {
-		param_type := p.parse_type_identifier()!
-		param_types << param_type
-
-		if p.current_token.kind == .punc_comma {
-			p.eat(.punc_comma)!
-		}
-	}
-
-	p.eat(.punc_close_paren)!
-
-	mut return_type := ?&ast.TypeIdentifier(none)
-	mut error_type := ?&ast.TypeIdentifier(none)
-
-	if p.current_token.kind == .identifier || p.current_token.kind == .punc_open_bracket
-		|| p.current_token.kind == .punc_question_mark || p.current_token.kind == .kw_function {
-		mut ret := p.parse_type_identifier()!
-		return_type = &ret
-
-		if p.current_token.kind == .punc_exclamation_mark {
-			p.eat(.punc_exclamation_mark)!
-			mut err := p.parse_type_identifier()!
-			error_type = &err
-		}
-	}
-
-	return ast.TypeIdentifier{
-		is_option:   is_option
-		is_function: true
-		identifier:  ast.Identifier{
-			name: 'fn'
-			span: span
-		}
-		param_types: param_types
-		return_type: return_type
-		error_type:  error_type
-		span:        p.span_from(span)
+		span: span
 	}
 }
 
