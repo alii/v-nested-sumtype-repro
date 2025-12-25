@@ -448,43 +448,10 @@ fn (mut p Parser) parse_function_expression() !ast.Expression {
 
 fn (mut p Parser) parse_function_return_types() !(?ast.TypeIdentifier, ?ast.TypeIdentifier) {
 	mut return_type := ?ast.TypeIdentifier(none)
-	mut error_type := ?ast.TypeIdentifier(none)
-
-	if p.current_token.kind == .punc_question_mark {
-		span := p.current_span()
-		p.eat(.punc_question_mark)!
-		if p.current_token.kind == .punc_open_brace {
-			return_type = ast.TypeIdentifier{
-				is_option:  true
-				identifier: ast.Identifier{
-					name: 'None'
-					span: span
-				}
-				span:       span
-			}
-		} else {
-			inner := p.parse_type_identifier()!
-			return_type = ast.TypeIdentifier{
-				is_option:   true
-				is_array:    inner.is_array
-				is_function: inner.is_function
-				identifier:  inner.identifier
-				param_types: inner.param_types
-				return_type: inner.return_type
-				error_type:  inner.error_type
-				span:        inner.span
-			}
-		}
-	} else if p.current_token.kind == .identifier || p.current_token.kind == .punc_open_bracket {
+	if p.current_token.kind == .identifier {
 		return_type = p.parse_type_identifier()!
 	}
-
-	if p.current_token.kind == .punc_exclamation_mark {
-		p.eat(.punc_exclamation_mark)!
-		error_type = p.parse_type_identifier()!
-	}
-
-	return return_type, error_type
+	return return_type, none
 }
 
 fn (mut p Parser) parse_parameters() ![]ast.FunctionParameter {
