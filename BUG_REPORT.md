@@ -35,30 +35,26 @@ v -cc gcc -cflags "-O2" -o repro repro.v
 
 ## Root Cause Analysis
 
-After extensive minimization (4000 lines → 476 lines), the bug requires a specific combination of components:
+After extensive minimization (4000 lines → 476 lines) and systematic testing, we identified the **required** trigger:
 
-### Required Components
+### Verified Required Components
 
-The bug requires ALL of these together:
-1. **Two parallel sum type hierarchies** (AST and TypedAST with same structure)
-2. **Multiple Expression variants** (13 in the current repro)
-3. **Recursive Statement type** (ExportDeclaration contains Statement)
-4. **Full parser** with match expressions over the sum types
-5. **Type checker** with map writes (`map[string]Type`)
-6. **Scanner** with @[heap] struct and reference to state
+| Component | Required? | Notes |
+|-----------|-----------|-------|
+| Parser | ✅ YES | Without parser, just manual AST → works |
+| Type checker | ✅ YES | Without type checker, just parse → works |
+| Map writes in type checker | ✅ YES | Remove `c.env.define()` calls → works |
+| @[heap] on Scanner | ❌ NO | Still crashes without it |
+| Recursive statement type | ❌ NO | Still crashes without AstExportDeclaration |
+| Two parallel sum types | Present in repro | Not independently tested |
 
-### What We Tested
+### Key Finding
 
-| Configuration | Crashes? |
-|--------------|----------|
-| All components (repro.v) | Yes |
-| Without parser (manual AST) | No |
-| Scanner + type checker only | No |
-| Parser types only (no methods) | No |
-| Parser helper methods only | No |
-| Full parser + type checker | Yes |
+The bug requires **both**:
+1. Full parser execution (with match expressions over sum types)
+2. Type checker with map write operations (`map[string]Type`)
 
-The bug specifically requires the full parser execution in combination with the type checker and sum type hierarchy.
+Removing **either** the type checker OR the map writes makes the bug disappear.
 
 ## The Crash
 
@@ -93,7 +89,7 @@ The `repro.v` file contains:
 - Typed AST types (mirrors AST structure)
 - Scanner (~100 lines)
 - Parser (~150 lines)
-- Type checker (~80 lines)
+- Type checker (~80 lines) - **contains the map writes that trigger the bug**
 - Main function
 
 ## V Version
@@ -123,13 +119,11 @@ Or in CI:
 
 ## Hypothesis
 
-This appears to be a GCC -O3 optimization bug triggered by the specific code patterns in the generated C code. The combination of:
-- Large sum types with many variants
-- Recursive type definitions
-- Complex match expressions in parser
-- Map operations during pattern matching
+This appears to be a GCC -O3 optimization bug triggered by the combination of:
+- Complex match expressions in parser producing sum type values
+- Map write operations in the type checker consuming those values
 
-creates a code pattern that GCC -O3 miscompiles on Linux x86_64.
+The -O3 optimization likely miscompiles something related to sum type dispatch combined with map access patterns.
 
 ## CI
 
