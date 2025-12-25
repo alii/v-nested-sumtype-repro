@@ -541,9 +541,6 @@ fn (mut p Parser) parse_primary_expression() !ast.Expression {
 		.literal_string {
 			p.parse_string_expression()!
 		}
-		.literal_string_interpolation {
-			p.parse_interpolated_string()!
-		}
 		.literal_number {
 			p.parse_number_expression()!
 		}
@@ -555,14 +552,6 @@ fn (mut p Parser) parse_primary_expression() !ast.Expression {
 			inner := p.parse_expression()!
 			p.eat(.punc_close_paren)!
 			inner
-		}
-		.kw_none {
-			span := p.current_span()
-			p.eat(.kw_none)!
-			ast.Identifier{
-				name: 'none'
-				span: span
-			}
 		}
 		.kw_true {
 			span := p.current_span()
@@ -589,29 +578,8 @@ fn (mut p Parser) parse_primary_expression() !ast.Expression {
 		.kw_if {
 			p.parse_if_expression()!
 		}
-		.kw_match {
-			p.parse_match_expression()!
-		}
 		.kw_function {
 			p.parse_function_expression()!
-		}
-		.kw_assert {
-			p.eat(.kw_assert)!
-			result := p.parse_expression()!
-			p.eat(.punc_comma)!
-			_ = p.parse_expression()! // discard message
-			result
-		}
-		.kw_error {
-			p.parse_error_expression()!
-		}
-		.error {
-			span := p.current_span()
-			p.advance()
-			ast.ErrorNode{
-				message: 'Scanner error'
-				span:    span
-			}
 		}
 		else {
 			return error("Unexpected '${p.current_token}'")
@@ -752,67 +720,6 @@ fn (mut p Parser) parse_if_expression() !ast.Expression {
 		span:      span
 		else_body: else_body
 	}
-}
-
-fn (mut p Parser) parse_match_expression() !ast.Expression {
-	p.eat(.kw_match)!
-
-	subject := p.parse_expression()!
-
-	p.eat(.punc_open_brace)!
-	p.push_context(.match_arms)
-
-	// Parse and discard match arms since MatchExpression is removed
-	for p.current_token.kind != .punc_close_brace && p.current_token.kind != .eof {
-		if p.current_token.kind == .kw_else {
-			p.eat(.kw_else)!
-		} else {
-			_ = p.parse_expression() or {
-				p.add_error(err.msg())
-				p.synchronize()
-				if p.current_token.kind == .punc_close_brace {
-					break
-				}
-				continue
-			}
-		}
-
-		for p.current_token.kind == .bitwise_or {
-			p.eat(.bitwise_or)!
-			_ = p.parse_expression() or {
-				p.add_error(err.msg())
-				p.synchronize()
-				break
-			}
-		}
-
-		p.eat(.punc_arrow) or {
-			p.add_error(err.msg())
-			p.synchronize()
-			if p.current_token.kind == .punc_close_brace {
-				break
-			}
-			continue
-		}
-
-		_ = p.parse_expression() or {
-			p.add_error(err.msg())
-			p.synchronize()
-			if p.current_token.kind == .punc_close_brace {
-				break
-			}
-			continue
-		}
-
-		if p.current_token.kind == .punc_comma {
-			p.eat(.punc_comma)!
-		}
-	}
-
-	p.pop_context()
-	p.eat(.punc_close_brace)!
-
-	return subject
 }
 
 fn (mut p Parser) parse_function() !ast.Node {
@@ -1103,26 +1010,6 @@ fn (mut p Parser) parse_binding() !ast.Statement {
 	}
 }
 
-fn (mut p Parser) parse_assert_expression() !ast.Expression {
-	p.eat(.kw_assert)!
-
-	expr := p.parse_expression()!
-
-	p.eat(.punc_comma)!
-
-	_ = p.parse_expression()!
-
-	return expr
-}
-
-fn (mut p Parser) parse_error_expression() !ast.Expression {
-	p.eat(.kw_error)!
-
-	expr := p.parse_unary_expression()!
-
-	return expr
-}
-
 fn (mut p Parser) parse_dot_expression(left ast.Expression) !ast.Expression {
 	start := left.span
 	p.eat(.punc_dot)!
@@ -1178,94 +1065,6 @@ fn (mut p Parser) parse_string_expression() !ast.Expression {
 	span := p.current_span()
 	return ast.StringLiteral{
 		value: p.eat_token_literal(.literal_string, 'Expected string')!
-		span:  span
-	}
-}
-
-fn (mut p Parser) parse_interpolated_string() !ast.Expression {
-	span := p.current_span()
-	raw := p.eat_token_literal(.literal_string_interpolation, 'Expected interpolated string')!
-
-	mut parts := []ast.Expression{}
-	mut current := ''
-	mut i := 0
-
-	for i < raw.len {
-		ch := raw[i]
-
-		if ch == `$` {
-			if current.len > 0 {
-				parts << ast.StringLiteral{
-					value: current
-					span:  span
-				}
-				current = ''
-			}
-
-			i++
-			if i >= raw.len {
-				return error('Unexpected end of interpolated string after $')
-			}
-
-			if raw[i] == `{` {
-				i++
-				mut expr_str := ''
-				mut brace_depth := 1
-				for i < raw.len && brace_depth > 0 {
-					if raw[i] == `{` {
-						brace_depth++
-					} else if raw[i] == `}` {
-						brace_depth--
-						if brace_depth == 0 {
-							break
-						}
-					}
-					expr_str += raw[i].ascii_str()
-					i++
-				}
-				if brace_depth != 0 {
-					return error('Unclosed { in interpolated string')
-				}
-				i++
-
-				mut s := scanner.new_scanner(expr_str)
-				mut expr_parser := new_parser(mut s)
-				expr := expr_parser.parse_expression()!
-				parts << expr
-			} else {
-				mut ident := ''
-				for i < raw.len
-					&& (raw[i].is_letter() || raw[i] == `_` || (ident.len > 0 && raw[i].is_digit())) {
-					ident += raw[i].ascii_str()
-					i++
-				}
-				if ident.len == 0 {
-					return error('Expected identifier after $ in interpolated string')
-				}
-				parts << ast.Identifier{
-					name: ident
-					span: span
-				}
-			}
-		} else {
-			current += ch.ascii_str()
-			i++
-		}
-	}
-
-	if current.len > 0 {
-		parts << ast.StringLiteral{
-			value: current
-			span:  span
-		}
-	}
-
-	// Return first part or just the string if no interpolation
-	if parts.len > 0 {
-		return parts[0]
-	}
-	return ast.StringLiteral{
-		value: raw
 		span:  span
 	}
 }
